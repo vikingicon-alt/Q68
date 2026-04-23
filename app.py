@@ -1,40 +1,22 @@
-import streamlit as st
-import yfinance as yf
-import plotly.graph_objects as go
-
-st.set_page_config(page_title="Dự Đoán Tài Chính AI", layout="wide")
-st.title("📊 Hệ Thống Theo Dõi Tài Chính")
-
-ticker_dict = {"Bitcoin": "BTC-USD", "Vàng": "GC=F", "VN-Index": "^VNINDEX"}
-target = st.sidebar.selectbox("Chọn tài sản:", list(ticker_dict.keys()))
-
-# Tải dữ liệu
-data = yf.download(ticker_dict[target], period="1y", interval="1d")
-
-if not data.empty:
-    # Cách lấy giá siêu an toàn, chấp mọi loại định dạng dữ liệu
-    try:
-        if data['Close'].ndim > 1:
-            latest_price = float(data['Close'].iloc[-1, 0])
-        else:
-            latest_price = float(data['Close'].iloc[-1])
-    except:
-        latest_price = 0.0
-
-    st.metric(label=f"Giá {target} hiện tại", value=f"{latest_price:,.2f}")
+fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], line=dict(color='orange', width=1), name='MA20'), row=1, col=1)
     
-    # Vẽ biểu đồ nến
-    fig = go.Figure(data=[go.Candlestick(
-        x=data.index,
-        open=data['Open'].iloc[:,0] if data['Open'].ndim > 1 else data['Open'],
-        high=data['High'].iloc[:,0] if data['High'].ndim > 1 else data['High'],
-        low=data['Low'].iloc[:,0] if data['Low'].ndim > 1 else data['Low'],
-        close=data['Close'].iloc[:,0] if data['Close'].ndim > 1 else data['Close'],
-        increasing_line_color='#26a69a', decreasing_line_color='#ef5350'
-    )])
-    fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("Đang tải dữ liệu...")
+    # Vẽ RSI
+    fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='magenta', width=2), name='RSI'), row=2, col=1)
+    fig.add_hline(y=70, line_dash="dot", line_color="red", row=2, col=1)
+    fig.add_hline(y=30, line_dash="dot", line_color="green", row=2, col=1)
 
-st.caption("❤️ Chúc Anh Yêu ngủ ngon!")
+    fig.update_layout(height=800, template='plotly_dark', xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # --- MÃ QR ---
+    st.write("---")
+    app_url = "https://nrynpp6caudetlbejh8appz.streamlit.app"
+    qr = qrcode.make(app_url)
+    buf = BytesIO()
+    qr.save(buf)
+    st.image(buf.getvalue(), caption="Quét mã QR để chia sẻ app chuyên nghiệp của anh", width=150)
+
+else:
+    st.error("Đang cập nhật dữ liệu...")
+
+st.caption("❤️ Chúc Anh Yêu đầu tư thắng lợi và ngủ ngon!")
