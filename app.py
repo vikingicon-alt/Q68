@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. CẤU HÌNH GIAO DIỆN PREMIUM ---
+# --- 1. PREMIUM INTERFACE ---
 st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
@@ -13,11 +13,7 @@ st.markdown("""
     .main { background-color: #080a0c; }
     .stButton>button { width: 100%; border-radius: 12px; height: 4em; font-weight: 800; font-size: 18px; border: none; color: white; opacity: 0.15; transition: 0.5s; }
     
-    @keyframes neon-glow {
-        0% { box-shadow: 0 0 5px; transform: scale(1); }
-        50% { box-shadow: 0 0 25px; transform: scale(1.02); }
-        100% { box-shadow: 0 0 5px; transform: scale(1); }
-    }
+    @keyframes neon-glow { 0% { box-shadow: 0 0 5px; transform: scale(1); } 50% { box-shadow: 0 0 25px; transform: scale(1.02); } 100% { box-shadow: 0 0 5px; transform: scale(1); } }
     
     .active-buy { background-color: #00ff88 !important; color: black !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
     .active-sell { background-color: #ff4b4b !important; color: white !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
@@ -27,9 +23,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG ĐA NGÔN NGỮ & ĐIỀU KHIỂN ---
+# --- 2. MULTI-LANGUAGE & CONTROLS ---
 with st.sidebar:
-    # Sửa chữ Sentinel AI thành Q68 theo yêu cầu của anh
     st.markdown("# 🐢 Q68") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
     
@@ -42,12 +37,8 @@ with st.sidebar:
         "signal": "🐢 TÍN HIỆU CHIẾN THUẬT A1" if lang == "Tiếng Việt" else "🐢 A1 STRATEGIC SIGNALS",
         "buy": "🔥 MUA NGAY", "sell": "❄️ BÁN NGAY", "hold": "⏳ CHỜ ĐỢI",
         "wait": "🔄 ĐANG KẾT NỐI DỮ LIỆU..." if lang == "Tiếng Việt" else "🔄 CONNECTING DATA..."
-    } if lang == "Tiếng Việt" else {
-        "asset": "STRATEGIC ASSET:", "tf": "TIMEFRAME (TF):", "scan": "A1 OPERATING SYSTEM:",
-        "title": "TREND PREDICTION", "price": "REAL-TIME USD PRICE", "signal": "🐢 A1 STRATEGIC SIGNALS",
-        "buy": "🔥 BUY NOW", "sell": "❄️ SELL NOW", "hold": "⏳ HOLD",
-        "wait": "🔄 CONNECTING DATA..."
     }
+
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D", "1W", "1M"], value="1h")
     
@@ -55,7 +46,7 @@ with st.sidebar:
     st.write(f"📲 **{t['scan']}**")
     st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://A1-PROJECT", width=150)
 
-# --- 3. LOGIC DỮ LIỆU QUỐC TẾ ---
+# --- 3. DATA ENGINE (INTEGRATED EMA) ---
 @st.cache_data(ttl=15)
 def fetch_global_data(symbol, tf):
     mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
@@ -77,6 +68,9 @@ def fetch_global_data(symbol, tf):
                 'Close': res['indicators']['quote'][0]['close'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
+            
+            # Tính toán EMA 20 và RSI
+            df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -84,7 +78,7 @@ def fetch_global_data(symbol, tf):
             return df
     except: return None
 
-# --- 4. HIỂN THỊ CHÍNH ---
+# --- 4. MAIN DASHBOARD ---
 st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
 
 df = fetch_global_data(asset_choice, tf_choice)
@@ -93,22 +87,36 @@ if df is not None:
     current_p = df['Close'].iloc[-1]
     st.metric(f"{t['price']} ({tf_choice})", f"${current_p:,.2f}")
 
+    # BIỂU ĐỒ 3 TẦNG VỚI ĐƯỜNG EMA VÀNG ĐẲNG CẤP
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02, row_heights=[0.6, 0.15, 0.25])
+    
+    # Tầng 1: Nến + EMA
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], line=dict(color='#FFD700', width=1.5), name="EMA 20"), row=1, col=1)
+    
+    # Tầng 2: Volume
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
     fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
+    
+    # Tầng 3: RSI
     fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], fill='tozeroy', line=dict(color='#00d1ff', width=2), fillcolor='rgba(0, 209, 255, 0.1)', name="RSI"), row=3, col=1)
+    
     fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=5, b=5))
     fig.update_yaxes(tickprefix="$", tickformat=",", row=1, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 5. TÍN HIỆU NEON CHUẨN A1 ---
+    # --- 5. LOGIC DỰ BÁO TỔNG HỢP ---
     st.markdown(f"### {t['signal']}")
     rsi_now = df['RSI'].iloc[-1]
+    price_now = df['Close'].iloc[-1]
+    ema_now = df['EMA20'].iloc[-1]
     
-    b_class = "active-buy" if rsi_now < 30 else ""
-    s_class = "active-sell" if rsi_now > 70 else ""
-    h_class = "active-hold" if (30 <= rsi_now <= 70) else ""
+    # Kết hợp RSI và Xu hướng giá so với EMA
+    is_uptrend = price_now > ema_now
+    
+    b_class = "active-buy" if (rsi_now < 35 and is_uptrend) else ""
+    s_class = "active-sell" if (rsi_now > 65 or not is_uptrend) else ""
+    h_class = "active-hold" if (not b_class and not s_class) else ""
 
     c1, c2, c3 = st.columns(3)
     with c1: st.markdown(f'<button class="stButton {b_class}">{t["buy"]}</button>', unsafe_allow_html=True)
@@ -117,5 +125,4 @@ if df is not None:
 else:
     st.warning(t["wait"])
 
-# --- 6. CHÂN TRANG Q68 ---
 st.markdown('<div class="q68-footer">Q68</div>', unsafe_allow_html=True)
