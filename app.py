@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. PREMIUM INTERFACE ---
+# --- 1. GIAO DIỆN PREMIUM ĐẲNG CẤP ---
 st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
@@ -20,10 +20,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. MULTI-LANGUAGE ---
+# --- 2. HỆ THỐNG ĐA NGÔN NGỮ (FIX LỖI 3 ĐÈN) ---
 with st.sidebar:
-    st.markdown("# 🐢 Q68") 
+    st.markdown("# 🐢 Q68 SYSTEM") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
+    
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
         "tf": "KHUNG THỜI GIAN (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
@@ -36,15 +37,16 @@ with st.sidebar:
         "hold_btn": "⏳ CHỜ ĐỢI" if lang == "Tiếng Việt" else "⏳ WAIT / HOLD",
         "wait": "🔄 ĐANG KẾT NỐI DỮ LIỆU..." if lang == "Tiếng Việt" else "🔄 CONNECTING DATA..."
     }
+
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
     st.divider()
     st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://A1-PROJECT", width=120)
 
-# --- 3. DATA ENGINE ---
+# --- 3. ĐỘNG CƠ DỮ LIỆU A1 (FIX LỖI THỤT LỀ) ---
 @st.cache_data(ttl=15)
 def fetch_global_data(symbol, tf):
-mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
+    mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
     ticker = mapping.get(symbol, "BTC-USD")
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval={tf}&range=5d"
     try:
@@ -59,19 +61,22 @@ mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG
                 'Low': res['indicators']['quote'][0]['low'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
+            # Tính toán chỉ báo vĩ mô ngầm
             df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
             df['RSI'] = 100 - (100 / (1 + (gain/loss)))
             return df
-    except: return None
+    except:
+        return None
 
-# --- 4. MAIN DASHBOARD ---
+# --- 4. BẢNG ĐIỀU KHIỂN CHÍNH ---
 st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
 df = fetch_global_data(asset_choice, tf_choice)
 
 if df is not None:
+    # Biểu đồ 3 tầng A1
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], line=dict(color='#FFD700', width=1.5), name="EMA 20"), row=1, col=1)
@@ -81,7 +86,7 @@ if df is not None:
     fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 5. TÍN HIỆU CHIẾN THUẬT A1 (Đã fix lề tuyệt đối) ---
+    # --- 5. TÍN HIỆU CHIẾN THUẬT A1 (FIX ĐỔI CHỮ) ---
     st.markdown(f"### {t['signal']}")
     rsi_now = df['RSI'].iloc[-1]
     price_now = df['Close'].iloc[-1]
@@ -93,7 +98,7 @@ if df is not None:
 
     c1, c2, c3 = st.columns(3)
     with c1: st.markdown(f'<button class="stButton {b_class}">{t["buy_btn"]}</button>', unsafe_allow_html=True)
-with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
     with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell_btn"]}</button>', unsafe_allow_html=True)
 else:
     st.warning(t["wait"])
