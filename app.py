@@ -5,8 +5,8 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. CẤU HÌNH GIAO DIỆN & STYLE NEON ---
-st.set_page_config(page_title="SENTINEL AI GLOBAL", layout="wide", page_icon="🐢")
+# --- 1. CẤU HÌNH GIAO DIỆN PREMIUM ---
+st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
     <style>
@@ -27,28 +27,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG ĐA NGÔN NGỮ ---
+# --- 2. HỆ THỐNG ĐA NGÔN NGỮ & ĐIỀU KHIỂN ---
 with st.sidebar:
-    st.markdown("# 🐢 SENTINEL AI")
-    
-    # Thêm lựa chọn ngôn ngữ ngay đầu tiên
+    # Sửa chữ Sentinel AI thành Q68 theo yêu cầu của anh
+    st.markdown("# 🐢 Q68") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
     
-    # Bộ từ điển ngôn ngữ
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
         "tf": "KHUNG THỜI GIAN (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
         "scan": "HỆ THỐNG QUẢN TRỊ A1:" if lang == "Tiếng Việt" else "A1 OPERATING SYSTEM:",
         "title": "DỰ BÁO XU HƯỚNG" if lang == "Tiếng Việt" else "TREND PREDICTION",
         "price": "GIÁ USD THỜI GIAN THỰC" if lang == "Tiếng Việt" else "REAL-TIME USD PRICE",
-        "signal": "🎯 TÍN HIỆU CHIẾN THUẬT A1" if lang == "Tiếng Việt" else "🎯 A1 STRATEGIC SIGNALS",
+        "signal": "🐢 TÍN HIỆU CHIẾN THUẬT A1" if lang == "Tiếng Việt" else "🐢 A1 STRATEGIC SIGNALS",
         "buy": "🔥 MUA NGAY", "sell": "❄️ BÁN NGAY", "hold": "⏳ CHỜ ĐỢI",
-        "wait": "🔄 ĐANG ĐỒNG BỘ DỮ LIỆU VỆ TINH..." if lang == "Tiếng Việt" else "🔄 SYNCING SATELLITE DATA..."
+        "wait": "🔄 ĐANG KẾT NỐI DỮ LIỆU..." if lang == "Tiếng Việt" else "🔄 CONNECTING DATA..."
     } if lang == "Tiếng Việt" else {
         "asset": "STRATEGIC ASSET:", "tf": "TIMEFRAME (TF):", "scan": "A1 OPERATING SYSTEM:",
-        "title": "TREND PREDICTION", "price": "REAL-TIME USD PRICE", "signal": "🎯 A1 STRATEGIC SIGNALS",
+        "title": "TREND PREDICTION", "price": "REAL-TIME USD PRICE", "signal": "🐢 A1 STRATEGIC SIGNALS",
         "buy": "🔥 BUY NOW", "sell": "❄️ SELL NOW", "hold": "⏳ HOLD",
-        "wait": "🔄 SYNCING SATELLITE DATA..."
+        "wait": "🔄 CONNECTING DATA..."
     }
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D", "1W", "1M"], value="1h")
@@ -86,7 +84,7 @@ def fetch_global_data(symbol, tf):
             return df
     except: return None
 
-# --- 4. HIỂN THỊ ---
+# --- 4. HIỂN THỊ CHÍNH ---
 st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
 
 df = fetch_global_data(asset_choice, tf_choice)
@@ -95,7 +93,6 @@ if df is not None:
     current_p = df['Close'].iloc[-1]
     st.metric(f"{t['price']} ({tf_choice})", f"${current_p:,.2f}")
 
-    # BIỂU ĐỒ NẾN CHUẨN QUỐC TẾ
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02, row_heights=[0.6, 0.15, 0.25])
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
@@ -105,7 +102,7 @@ if df is not None:
     fig.update_yaxes(tickprefix="$", tickformat=",", row=1, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 5. TÍN HIỆU NEON ĐA NGÔN NGỮ ---
+    # --- 5. TÍN HIỆU NEON CHUẨN A1 ---
     st.markdown(f"### {t['signal']}")
     rsi_now = df['RSI'].iloc[-1]
     
@@ -120,4 +117,5 @@ if df is not None:
 else:
     st.warning(t["wait"])
 
+# --- 6. CHÂN TRANG Q68 ---
 st.markdown('<div class="q68-footer">Q68</div>', unsafe_allow_html=True)
