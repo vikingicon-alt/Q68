@@ -25,7 +25,6 @@ with st.sidebar:
     st.markdown("# 🐢 Q68 A1") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
     
-    # TỪ ĐIỂN ĐÃ FIX LỖI 3 CÁI ĐÈN
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
         "tf": "KHUNG THỜI GIAN (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
@@ -45,10 +44,10 @@ with st.sidebar:
     st.divider()
     st.write(f"📲 **{t['scan']}**")
     st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://A1-PROJECT", width=120)
-    # --- 3. DXY & MARKET ENGINE ---
+
+# --- 3. DXY & MARKET ENGINE ---
 @st.cache_data(ttl=15)
 def get_macro_data():
-    # Giả lập lấy dữ liệu DXY và Dow Jones cho dự án A1
     return {"DXY": 104.5, "DOW": 39000}
 
 @st.cache_data(ttl=15)
@@ -81,7 +80,6 @@ col_main, col_macro = st.columns([4, 1])
 with col_main:
     st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
     if df is not None:
-        # Biểu đồ nến
         fig = go.Figure(data=[go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
         fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(t=0, b=0))
         st.plotly_chart(fig, use_container_width=True)
@@ -91,21 +89,21 @@ with col_macro:
     st.metric("DXY", macro["DXY"], "+0.2%")
     st.metric("DOW", f"{macro['DOW']:,}", "-50")
 
-# --- 5. ĐÈN TÍN HIỆU CHIẾN THUẬT (ĐÃ SỬA LỖI CHUYỂN NGÔN NGỮ) ---
+# --- 5. ĐÈN TÍN HIỆU CHIẾN THUẬT (Đã sửa lỗi thụt đầu dòng) ---
 st.markdown(f"### {t['signal']}")
 
 if df is not None:
     price_now = df['Close'].iloc[-1]
     ema_now = df['EMA20'].iloc[-1]
     
-    # Logic dự báo của trader kinh tế vĩ mô: Nếu giá > EMA và DXY giảm = MUA
     b_class = "active-buy" if price_now > ema_now else ""
     s_class = "active-sell" if price_now < ema_now else ""
     h_class = "active-hold" if not b_class and not s_class else ""
 
     c1, c2, c3 = st.columns(3)
-    # SỬ DỤNG t["buy_btn"], t["hold_btn"], t["sell_btn"] ĐỂ TỰ ĐỘNG ĐỔI CHỮ
     with c1: st.markdown(f'<button class="stButton {b_class}">{t["buy_btn"]}</button>', unsafe_allow_html=True)
     with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
     with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell_btn"]}</button>', unsafe_allow_html=True)
- st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
+
+# Dòng này phải sát lề trái hoàn toàn để không lỗi Indentation
+st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
