@@ -5,7 +5,8 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. GIAO DIỆN PREMIUM A1 ---
+# --- 1. GIAO DIỆN PREMIUM A1 & CẤU HÌNH APPLE WEB APP ---
+# Phần này em đã thêm cấu hình để ẩn thanh tìm kiếm và hiện icon rùa
 st.set_page_config(page_title="Q68 - A1 SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
@@ -13,6 +14,7 @@ st.markdown("""
     .main { background-color: #080a0c; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;} /* Ẩn header của Streamlit */
     .stButton>button { 
         width: 100%; border-radius: 12px; height: 4em; 
         font-weight: 800; font-size: 18px; border: none; 
@@ -24,6 +26,12 @@ st.markdown("""
     .active-hold { background-color: #ffaa00 !important; color: black !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
     .q68-footer { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); color: #ffffff; font-weight: 900; font-size: 20px; opacity: 0.3; letter-spacing: 5px; }
 </style>
+
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="A1 SYSTEM">
+</head>
 """, unsafe_allow_html=True)
 
 # --- 2. MENU BÊN TRÁI (QR & NGÔN NGỮ) ---
@@ -41,8 +49,7 @@ with st.sidebar:
         "hold_btn": "⏳ WAIT" if lang == "English" else "⏳ CHỜ",
     }
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
-    tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
-    st.divider()
+    tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")st.divider()
     st.write(f"📲 **{t['scan']}**")
     qr_link = "https://nrynpp6caudetlbejh8appz.streamlit.app"
     st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_link}", width=150)
@@ -83,19 +90,15 @@ if df is not None:
 
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     
-    # Tầng 1: Price & MA
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA7'], line=dict(color='#FFD700', width=1.5), name="MA7"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA25'], line=dict(color='#FF69B4', width=1.5), name="MA25"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA99'], line=dict(color='#9370DB', width=1.5), name="MA99"), row=1, col=1)
     
-    # Tầng 2: VOLUME (ĐÃ BỔ SUNG)
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
     fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
     
-    # Tầng 3: RSI CẢI TIẾN
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], line=dict(color='#00d1ff', width=2), name="RSI"), row=3, col=1)
-    fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.3, row=3, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], line=dict(color='#00d1ff', width=2), name="RSI"), row=3, col=1)fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.3, row=3, col=1)
     fig.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.3, row=3, col=1)
 
     fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=0, b=0, l=0, r=0))
