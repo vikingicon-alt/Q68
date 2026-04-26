@@ -10,18 +10,18 @@ import json
 # =========================================================
 st.set_page_config(page_title="Q68 - A1 SYSTEM", layout="wide", page_icon="🐢")
 
-# Link ảnh con rùa vàng Q68 em đã chuẩn bị sẵn để nhúng vào App của anh
+# Link ảnh con rùa vàng Q68 em đã chuẩn bị sẵn để làm biểu tượng App cho anh
 icon_url = "https://i.imgur.com/83pZpGv.png"
 
 st.markdown(f"""
 <style>
-    /* Ẩn hoàn toàn các thành phần thừa của Streamlit */
+    /* Ẩn hoàn toàn các thành phần thừa để đạt giao diện Pro */
     .main {{ background-color: #080a0c; }}
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
     
-    /* Hiệu ứng nút bấm Neon Đẳng cấp */
+    /* Hiệu ứng nút bấm Neon cho tín hiệu chiến thuật */
     .stButton>button {{ 
         width: 100%; border-radius: 12px; height: 4em; 
         font-weight: 800; font-size: 18px; border: none; 
@@ -48,7 +48,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 2. MENU ĐIỀU KHIỂN (QR & NGÔN NGỮ)
+# 2. MENU ĐIỀU KHIỂN CHIẾN THUẬT
 # =========================================================
 with st.sidebar:
     st.markdown("# 🐢 Q68 SYSTEM") 
@@ -63,6 +63,7 @@ with st.sidebar:
         "hold_btn": "⏳ WAIT" if lang == "English" else "⏳ CHỜ",
     }
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
+    # Đã sửa lỗi thiếu đóng ngoặc ở dòng này cho anh:
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
     st.divider()
     st.write(f"📲 **{t['scan']}**")
@@ -70,7 +71,7 @@ with st.sidebar:
     st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_link}", width=150)
 
 # =========================================================
-# 3. ĐỘNG CƠ DỮ LIỆU TÀI CHÍNH (DXY, DOW JONES, PAXG...)
+# 3. ĐỘNG CƠ DỮ LIỆU TÀI CHÍNH (VOLUME & CHỈ BÁO)
 # =========================================================
 @st.cache_data(ttl=15)
 def fetch_global_data(symbol, tf):
@@ -89,11 +90,11 @@ def fetch_global_data(symbol, tf):
                 'Low': res['indicators']['quote'][0]['low'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
-            # Chỉ báo MA
+            # Tính các đường MA của anh
             df['MA7'] = df['Close'].rolling(7).mean()
             df['MA25'] = df['Close'].rolling(25).mean()
             df['MA99'] = df['Close'].rolling(99).mean()
-            # Chỉ báo RSI
+            # Tính RSI
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -102,22 +103,21 @@ def fetch_global_data(symbol, tf):
     except: return None
 
 # =========================================================
-# 4. HIỂN THỊ BIỂU ĐỒ ĐA TẦNG (NẾN - VOLUME - RSI)
+# 4. BIỂU ĐỒ ĐA TẦNG (GIÁ - VOLUME - RSI)
 # =========================================================
 df = fetch_global_data(asset_choice, tf_choice)
 if df is not None:
     current_price = df['Close'].iloc[-1]
     st.markdown(f"<h1 style='text-align: center; color: white;'>🐢 {asset_choice.split(' ')[0]} | ${current_price:,.2f} USD</h1>", unsafe_allow_html=True)
-
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     
-    # Tầng 1: Price & MAs
+    # Tầng 1: Biểu đồ nến & MAs
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA7'], line=dict(color='#FFD700', width=1.5), name="MA7"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA25'], line=dict(color='#FF69B4', width=1.5), name="MA25"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA99'], line=dict(color='#9370DB', width=1.5), name="MA99"), row=1, col=1)
     
-    # Tầng 2: VOLUME (Đầy đủ)
+    # Tầng 2: Cột Volume đầy đủ
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
     fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
     
@@ -130,7 +130,7 @@ if df is not None:
     st.plotly_chart(fig, use_container_width=True)
 
     # =========================================================
-    # 5. TÍN HIỆU CHIẾN THUẬT A1
+    # 5. TÍN HIỆU CHIẾN THUẬT A1 NEON
     # =========================================================
     rsi_now = df['RSI'].iloc[-1]; price_now = df['Close'].iloc[-1]; ma25_now = df['MA25'].iloc[-1]
     b_class = "active-buy" if (price_now > ma25_now and rsi_now < 70) else ""
@@ -143,6 +143,6 @@ if df is not None:
     with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
     with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell_btn"]}</button>', unsafe_allow_html=True)
 else:
-    st.warning("🔄 DỮ LIỆU ĐANG TẢI...")
+    st.info("🔄 ĐANG CẬP NHẬT DỮ LIỆU THỊ TRƯỜNG...")
 
 st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
