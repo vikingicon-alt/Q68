@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. GIAO DIỆN PREMIUM ĐẲNG CẤP ---
+# --- 1. PREMIUM INTERFACE ---
 st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
@@ -20,30 +20,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG ĐA NGÔN NGỮ (FIX LỖI 3 ĐÈN) ---
+# --- 2. MULTI-LANGUAGE ---
 with st.sidebar:
-    st.markdown("# 🐢 Q68 SYSTEM") 
+    st.markdown("# 🐢 Q68") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
-    
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
         "tf": "KHUNG THỜI GIAN (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
-        "scan": "HỆ THỐNG QUẢN TRỊ A1:" if lang == "Tiếng Việt" else "A1 OPERATING SYSTEM:",
+        "scan": "QUÉT MÃ A1 SYSTEM:" if lang == "Tiếng Việt" else "SCAN A1 SYSTEM:",
         "title": "DỰ BÁO XU HƯỚNG" if lang == "Tiếng Việt" else "TREND PREDICTION",
-        "price": "GIÁ THỜI GIAN THỰC" if lang == "Tiếng Việt" else "REAL-TIME PRICE",
         "signal": "🐢 TÍN HIỆU CHIẾN THUẬT A1" if lang == "Tiếng Việt" else "🐢 A1 STRATEGIC SIGNALS",
         "buy_btn": "🔥 MUA NGAY" if lang == "Tiếng Việt" else "🔥 BUY NOW",
         "sell_btn": "❄️ BÁN NGAY" if lang == "Tiếng Việt" else "❄️ SELL NOW",
         "hold_btn": "⏳ CHỜ ĐỢI" if lang == "Tiếng Việt" else "⏳ WAIT / HOLD",
-        "wait": "🔄 ĐANG KẾT NỐI DỮ LIỆU..." if lang == "Tiếng Việt" else "🔄 CONNECTING DATA..."
+        "wait": "🔄 ĐANG KẾT NỐI..." if lang == "Tiếng Việt" else "🔄 CONNECTING..."
     }
-
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
     st.divider()
-    st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://A1-PROJECT", width=120)
+    
+    # SỬA MÃ QR: Trỏ thẳng vào địa chỉ app để anh quét là ra dữ liệu
+    st.write(f"📲 **{t['scan']}**")
+    qr_data = "https://nrynpp6caudetlbejh8appz.streamlit.app"
+    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_data}", width=150)
 
-# --- 3. ĐỘNG CƠ DỮ LIỆU A1 (FIX LỖI THỤT LỀ) ---
+# --- 3. DATA ENGINE ---
 @st.cache_data(ttl=15)
 def fetch_global_data(symbol, tf):
     mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
@@ -61,22 +62,22 @@ def fetch_global_data(symbol, tf):
                 'Low': res['indicators']['quote'][0]['low'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
-            # Tính toán chỉ báo vĩ mô ngầm
             df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
             df['RSI'] = 100 - (100 / (1 + (gain/loss)))
             return df
-    except:
-        return None
+    except: return None
 
-# --- 4. BẢNG ĐIỀU KHIỂN CHÍNH ---
-st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
+# --- 4. MAIN DASHBOARD ---
 df = fetch_global_data(asset_choice, tf_choice)
 
 if df is not None:
-    # Biểu đồ 3 tầng A1
+    current_price = df['Close'].iloc[-1]
+    # SỬA TIÊU ĐỀ: Thêm giá USD trực tiếp vào tiêu đề chính
+    st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']} | ${current_price:,.2f} USD")
+
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], line=dict(color='#FFD700', width=1.5), name="EMA 20"), row=1, col=1)
@@ -86,7 +87,7 @@ if df is not None:
     fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 5. TÍN HIỆU CHIẾN THUẬT A1 (FIX ĐỔI CHỮ) ---
+    # --- 5. TÍN HIỆU CHIẾN THUẬT A1 ---
     st.markdown(f"### {t['signal']}")
     rsi_now = df['RSI'].iloc[-1]
     price_now = df['Close'].iloc[-1]
@@ -104,3 +105,4 @@ else:
     st.warning(t["wait"])
 
 st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
+    
