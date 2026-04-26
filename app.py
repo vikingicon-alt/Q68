@@ -10,18 +10,18 @@ import json
 # =========================================================
 st.set_page_config(page_title="Q68 - A1 SYSTEM", layout="wide", page_icon="🐢")
 
-# Link ảnh con rùa vàng Q68 em đã chuẩn bị sẵn để làm biểu tượng App cho anh
+# Link ảnh con rùa vàng Q68 em đã nhúng trực tiếp để làm biểu tượng App
 icon_url = "https://i.imgur.com/83pZpGv.png"
 
 st.markdown(f"""
 <style>
-    /* Ẩn hoàn toàn các thành phần thừa để đạt giao diện Pro */
+    /* Ẩn hoàn toàn các thành phần thừa của Streamlit */
     .main {{ background-color: #080a0c; }}
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
     
-    /* Hiệu ứng nút bấm Neon cho tín hiệu chiến thuật */
+    /* Hiệu ứng nút bấm Neon chuyên nghiệp */
     .stButton>button {{ 
         width: 100%; border-radius: 12px; height: 4em; 
         font-weight: 800; font-size: 18px; border: none; 
@@ -50,6 +50,9 @@ st.markdown(f"""
 # =========================================================
 # 2. MENU ĐIỀU KHIỂN CHIẾN THUẬT
 # =========================================================
+# =========================================================
+# 2. MENU ĐIỀU KHIỂN CHIẾN THUẬT
+# =========================================================
 with st.sidebar:
     st.markdown("# 🐢 Q68 SYSTEM") 
     lang = st.radio("🌐 NGÔN NGỮ / LANGUAGE:", ["Tiếng Việt", "English"], horizontal=True)
@@ -63,7 +66,6 @@ with st.sidebar:
         "hold_btn": "⏳ WAIT" if lang == "English" else "⏳ CHỜ",
     }
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
-    # Đã sửa lỗi thiếu đóng ngoặc ở dòng này cho anh:
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
     st.divider()
     st.write(f"📲 **{t['scan']}**")
@@ -90,11 +92,11 @@ def fetch_global_data(symbol, tf):
                 'Low': res['indicators']['quote'][0]['low'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
-            # Tính các đường MA của anh
+            # Các đường trung bình MA
             df['MA7'] = df['Close'].rolling(7).mean()
             df['MA25'] = df['Close'].rolling(25).mean()
             df['MA99'] = df['Close'].rolling(99).mean()
-            # Tính RSI
+            # Chỉ báo RSI
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -109,15 +111,16 @@ df = fetch_global_data(asset_choice, tf_choice)
 if df is not None:
     current_price = df['Close'].iloc[-1]
     st.markdown(f"<h1 style='text-align: center; color: white;'>🐢 {asset_choice.split(' ')[0]} | ${current_price:,.2f} USD</h1>", unsafe_allow_html=True)
+
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     
-    # Tầng 1: Biểu đồ nến & MAs
+    # Tầng 1: Nến & MA
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA7'], line=dict(color='#FFD700', width=1.5), name="MA7"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA25'], line=dict(color='#FF69B4', width=1.5), name="MA25"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA99'], line=dict(color='#9370DB', width=1.5), name="MA99"), row=1, col=1)
     
-    # Tầng 2: Cột Volume đầy đủ
+    # Tầng 2: Volume
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
     fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
     
@@ -143,6 +146,6 @@ if df is not None:
     with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
     with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell_btn"]}</button>', unsafe_allow_html=True)
 else:
-    st.info("🔄 ĐANG CẬP NHẬT DỮ LIỆU THỊ TRƯỜNG...")
+    st.info("🔄 ĐANG TẢI DỮ LIỆU...")
 
 st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
