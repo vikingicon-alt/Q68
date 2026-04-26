@@ -13,7 +13,6 @@ st.markdown("""
     .main { background-color: #080a0c; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* Tối ưu nút bấm tín hiệu */
     .stButton>button { 
         width: 100%; border-radius: 12px; height: 4em; 
         font-weight: 800; font-size: 18px; border: none; 
@@ -27,11 +26,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. MENU BÊN TRÁI (HIỆN LẠI QR & NGÔN NGỮ) ---
+# --- 2. MENU BÊN TRÁI (QR & NGÔN NGỮ) ---
 with st.sidebar:
     st.markdown("# 🐢 Q68 SYSTEM") 
     lang = st.radio("🌐 NGÔN NGỮ / LANGUAGE:", ["Tiếng Việt", "English"], horizontal=True)
-    
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
         "tf": "KHUNG GIỜ (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
@@ -41,14 +39,10 @@ with st.sidebar:
         "buy_btn": "🔥 BUY" if lang == "English" else "🔥 MUA",
         "sell_btn": "❄️ SELL" if lang == "English" else "❄️ BÁN",
         "hold_btn": "⏳ WAIT" if lang == "English" else "⏳ CHỜ",
-        "wait": "🔄 ĐANG KẾT NỐI..." if lang == "Tiếng Việt" else "🔄 CONNECTING..."
     }
-
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
-    
     st.divider()
-    # Hiện mã QR chắc chắn hoạt động
     st.write(f"📲 **{t['scan']}**")
     qr_link = "https://nrynpp6caudetlbejh8appz.streamlit.app"
     st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_link}", width=150)
@@ -68,7 +62,8 @@ def fetch_global_data(symbol, tf):
                 'Close': res['indicators']['quote'][0]['close'],
                 'Open': res['indicators']['quote'][0]['open'],
                 'High': res['indicators']['quote'][0]['high'],
-                'Low': res['indicators']['quote'][0]['low']
+                'Low': res['indicators']['quote'][0]['low'],
+                'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
             df['MA7'] = df['Close'].rolling(7).mean()
             df['MA25'] = df['Close'].rolling(25).mean()
@@ -80,27 +75,30 @@ def fetch_global_data(symbol, tf):
             return df
     except: return None
 
-# --- 4. HIỂN THỊ BIỂU ĐỒ & RSI CẢI TIẾN ---
+# --- 4. HIỂN THỊ ĐA TẦNG (NẾN - VOLUME - RSI) ---
 df = fetch_global_data(asset_choice, tf_choice)
 if df is not None:
     current_price = df['Close'].iloc[-1]
     st.markdown(f"<h1 style='text-align: center; color: white;'>🐢 {asset_choice.split(' ')[0]} | ${current_price:,.2f} USD</h1>", unsafe_allow_html=True)
 
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
     
-    # Biểu đồ nến & MA (Binance Style)
+    # Tầng 1: Price & MA
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA7'], line=dict(color='#FFD700', width=1.5), name="MA7"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA25'], line=dict(color='#FF69B4', width=1.5), name="MA25"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df['Date'], y=df['MA99'], line=dict(color='#9370DB', width=1.5), name="MA99"), row=1, col=1)
     
-    # RSI DẠNG ĐƯỜNG KẺ DỄ NHÌN
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], line=dict(color='#00d1ff', width=2), name="RSI"), row=2, col=1)
-    # Thêm đường biên 70 và 30 cho RSI
-    fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.3, row=2, col=1)
-    fig.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.3, row=2, col=1)
+    # Tầng 2: VOLUME (ĐÃ BỔ SUNG)
+    v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
+    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
+    
+    # Tầng 3: RSI CẢI TIẾN
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], line=dict(color='#00d1ff', width=2), name="RSI"), row=3, col=1)
+    fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.3, row=3, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.3, row=3, col=1)
 
-    fig.update_layout(height=550, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=0, b=0, l=0, r=0))
+    fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=0, b=0, l=0, r=0))
     st.plotly_chart(fig, use_container_width=True)
 
     # --- 5. TÍN HIỆU A1 ---
@@ -115,6 +113,6 @@ if df is not None:
     with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold_btn"]}</button>', unsafe_allow_html=True)
     with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell_btn"]}</button>', unsafe_allow_html=True)
 else:
-    st.warning(t["wait"])
+    st.warning("🔄 CONNECTING...")
 
 st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
