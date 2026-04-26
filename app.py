@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import urllib.request
 import json
 
-# --- 1. PREMIUM INTERFACE ---
+# --- 1. GIAO DIỆN PREMIUM ĐẲNG CẤP ---
 st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
@@ -20,9 +20,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. MULTI-LANGUAGE ---
+# --- 2. HỆ THỐNG ĐA NGÔN NGỮ ---
 with st.sidebar:
-    st.markdown("# 🐢 Q68") 
+    st.markdown("# 🐢 Q68 SYSTEM") 
     lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
     t = {
         "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
@@ -38,13 +38,10 @@ with st.sidebar:
     asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
     tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D"], value="1h")
     st.divider()
-    
-    # SỬA MÃ QR: Trỏ thẳng vào địa chỉ app để anh quét là ra dữ liệu
-    st.write(f"📲 **{t['scan']}**")
     qr_data = "https://nrynpp6caudetlbejh8appz.streamlit.app"
     st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_data}", width=150)
 
-# --- 3. DATA ENGINE ---
+# --- 3. ĐỘNG CƠ DỮ LIỆU A1 (HỆ THỐNG MA ĐA TẦNG) ---
 @st.cache_data(ttl=15)
 def fetch_global_data(symbol, tf):
     mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
@@ -62,7 +59,11 @@ def fetch_global_data(symbol, tf):
                 'Low': res['indicators']['quote'][0]['low'],
                 'Volume': res['indicators']['quote'][0]['volume']
             }).dropna()
-            df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+            # BỘ CHỈ BÁO BINANCE STYLE
+            df['MA7'] = df['Close'].rolling(window=7).mean()
+            df['MA25'] = df['Close'].rolling(window=25).mean()
+            df['MA99'] = df['Close'].rolling(window=99).mean()
+            # CHỈ BÁO RSI CHO TÍN HIỆU A1
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -70,31 +71,38 @@ def fetch_global_data(symbol, tf):
             return df
     except: return None
 
-# --- 4. MAIN DASHBOARD ---
+# --- 4. BẢNG ĐIỀU KHIỂN CHÍNH ---
 df = fetch_global_data(asset_choice, tf_choice)
 
 if df is not None:
     current_price = df['Close'].iloc[-1]
-    # SỬA TIÊU ĐỀ: Thêm giá USD trực tiếp vào tiêu đề chính
     st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']} | ${current_price:,.2f} USD")
 
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
+    
+    # TẦNG 1: NẾN + BỘ 3 ĐƯỜNG MA (Vàng, Hồng, Tím)
     fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], line=dict(color='#FFD700', width=1.5), name="EMA 20"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['MA7'], line=dict(color='#FFD700', width=1.2), name="MA7"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['MA25'], line=dict(color='#FF69B4', width=1.2), name="MA25"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['MA99'], line=dict(color='#9370DB', width=1.2), name="MA99"), row=1, col=1)
+    
+    # TẦNG 2: VOLUME
     v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
     fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
+    
+    # TẦNG 3: RSI
     fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], line=dict(color='#00d1ff', width=2), fill='tozeroy', name="RSI"), row=3, col=1)
+    
     fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
-
     # --- 5. TÍN HIỆU CHIẾN THUẬT A1 ---
     st.markdown(f"### {t['signal']}")
     rsi_now = df['RSI'].iloc[-1]
     price_now = df['Close'].iloc[-1]
-    ema_now = df['EMA20'].iloc[-1]
+    ma25_now = df['MA25'].iloc[-1]
     
-    b_class = "active-buy" if (price_now > ema_now and rsi_now < 70) else ""
-    s_class = "active-sell" if (price_now < ema_now or rsi_now > 70) else ""
+    b_class = "active-buy" if (price_now > ma25_now and rsi_now < 70) else ""
+    s_class = "active-sell" if (price_now < ma25_now or rsi_now > 70) else ""
     h_class = "active-hold" if not b_class and not s_class else ""
 
     c1, c2, c3 = st.columns(3)
@@ -105,4 +113,3 @@ else:
     st.warning(t["wait"])
 
 st.markdown('<div class="q68-footer">Q68 - A1 SYSTEM</div>', unsafe_allow_html=True)
-    
