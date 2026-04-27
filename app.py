@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# --- 1. CẤU HÌNH HỆ THỐNG & GIAO DIỆN NEON ---
+# --- 1. CẤU HÌNH HỆ THỐNG & GIAO DIỆN ---
 icon_url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
 st.set_page_config(page_title="Q68 SYSTEM GLOBAL", layout="wide", page_icon="🐢")
 
@@ -52,7 +52,7 @@ if not st.session_state['auth']:
 
 L = text[st.session_state['lang']]
 
-# --- 4. ENGINE DỮ LIỆU CHUYÊN NGHIỆP ---
+# --- 4. ENGINE DỮ LIỆU ---
 def fetch_market_data(symbol, interval):
     try:
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
@@ -68,7 +68,7 @@ def fetch_market_data(symbol, interval):
         return df
     except: return None
 
-# --- 5. SIDEBAR ĐIỀU HÀNH ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
     st.image(icon_url, width=90)
     st.markdown("<h2 style='color: gold; text-align: center; margin-top: -10px;'>Q68 SYSTEM</h2>", unsafe_allow_html=True)
@@ -92,19 +92,23 @@ if data is not None:
     name = "VÀNG (GOLD)" if target == "PAXGUSDT" else target
     st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {name} ({timeframe})</h2>", unsafe_allow_html=True)
     
-    # Chart
     fig = go.Figure()
-    if chart_type == "Candles": fig.add_trace(go.Candlestick(x=data.index, open=data['O'], high=data['H'], low=data['L'], close=data['C']))
-    elif chart_type == "Line": fig.add_trace(go.Scatter(y=data['C'], line=dict(color='#00ffcc', width=3)))
-    else: fig.add_trace(go.Scatter(y=data['C'], fill='tozeroy', line=dict(color='gold')))
+    if chart_type == "Candles":
+        fig.add_trace(go.Candlestick(x=data.index, open=data['O'], high=data['H'], low=data['L'], close=data['C']))
+    elif chart_type == "Line":
+        fig.add_trace(go.Scatter(y=data['C'], line=dict(color='#00ffcc', width=3)))
+    else:
+        fig.add_trace(go.Scatter(y=data['C'], fill='tozeroy', line=dict(color='gold')))
         fig.add_trace(go.Scatter(y=data['EMA20'], line=dict(color='white', width=1, dash='dot'), name='EMA20'))
     fig.update_layout(height=400, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tín hiệu NEON
-    if curr_p > ema_v and rsi_v < 70: st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
-    elif curr_p < ema_v and rsi_v > 30: st.markdown(f'<div class="signal-box sell-neon">{L["sell"]}</div>', unsafe_allow_html=True)
-    else: st.markdown(f'<div class="signal-box hold-neon">{L["hold"]}</div>', unsafe_allow_html=True)
+    if curr_p > ema_v and rsi_v < 70:
+        st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
+    elif curr_p < ema_v and rsi_v > 30:
+        st.markdown(f'<div class="signal-box sell-neon">{L["sell"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="signal-box hold-neon">{L["hold"]}</div>', unsafe_allow_html=True)
 
     m1, m2, m3 = st.columns(3)
     m1.metric(L['price'], f"${curr_p:,.2f}")
