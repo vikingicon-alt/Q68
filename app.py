@@ -4,127 +4,113 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# --- 1. THIẾT LẬP THƯƠNG HIỆU & ICON Q68 (CHỐNG LỖI CACHE) ---
-icon_q68 = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
-
+# --- 1. CẤU HÌNH HỆ THỐNG & GIAO DIỆN NEON ---
+icon_url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
 st.set_page_config(page_title="Q68 SYSTEM GLOBAL", layout="wide", page_icon="🐢")
 
 st.markdown(f"""
     <style>
         header, footer, #MainMenu {{visibility: hidden !important;}}
         .main {{background-color: #05070a; color: white;}}
-        [data-testid="stSidebar"] {{background-color: #0c0f14; border-right: 1px solid #1e2229;}}
+        [data-testid="stSidebar"] {{background-color: #0c0f14; border-right: 1px solid #1e2229; min-width: 300px;}}
         .signal-box {{
-            padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; font-size: 26px;
-            box-shadow: 0 0 20px rgba(255,255,255,0.1); margin-bottom: 20px;
+            padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; font-size: 28px;
+            margin-bottom: 20px; text-transform: uppercase;
         }}
-        .buy-neon {{ border: 3px solid #00ffcc; color: #00ffcc; text-shadow: 0 0 15px #00ffcc; }}
-        .sell-neon {{ border: 3px solid #ff3366; color: #ff3366; text-shadow: 0 0 15px #ff3366; }}
-        .hold-neon {{ border: 3px solid #ffcc00; color: #ffcc00; text-shadow: 0 0 15px #ffcc00; }}
-        .stMetric {{ background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid #333; }}
-        .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; background-color: gold; color: black; border: none;}}
+        .buy-neon {{ border: 3px solid #00ffcc; color: #00ffcc; text-shadow: 0 0 20px #00ffcc; box-shadow: inset 0 0 10px #00ffcc; }}
+        .sell-neon {{ border: 3px solid #ff3366; color: #ff3366; text-shadow: 0 0 20px #ff3366; box-shadow: inset 0 0 10px #ff3366; }}
+        .hold-neon {{ border: 3px solid #ffcc00; color: #ffcc00; text-shadow: 0 0 20px #ffcc00; box-shadow: inset 0 0 10px #ffcc00; }}
+        .stMetric {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid #333; }}
+        div.stButton > button {{ width: 100%; background-color: gold; color: black; font-weight: bold; border-radius: 10px; border: none; height: 50px; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. QUẢN LÝ NGÔN NGỮ ---
+# --- 2. HỆ THỐNG SONG NGỮ ---
 if 'lang' not in st.session_state: st.session_state['lang'] = 'vi'
-
-with st.sidebar:
-    st.image(icon_q68, width=100)
-    st.markdown("<h3 style='color: gold; text-align: center;'>Q68 SYSTEM</h3>", unsafe_allow_html=True)
-    lang_choice = st.radio("NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
-    st.session_state['lang'] = 'vi' if lang_choice == "Tiếng Việt" else 'en'
-
 text = {
-    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI', 'conn': 'Đang kết nối luồng dữ liệu...'},
-    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE', 'conn': 'Connecting to live data...'}
+    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI', 'load': '🔄 Đang đồng bộ luồng dữ liệu...'},
+    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE', 'load': '🔄 Syncing live data flow...'}
 }
-L = text[st.session_state['lang']]
 
-# --- 3. BẢO MẬT ---
-if 'authenticated' not in st.session_state: st.session_state['authenticated'] = False
-if not st.session_state['authenticated']:
-    st.markdown(f"<div style='text-align: center; margin-top: 50px;'><img src='{icon_q68}' width='150'></div>", unsafe_allow_html=True)
-    st.markdown(f"<h1 style='text-align: center; color: gold;'>{L['title']}</h1>", unsafe_allow_html=True)
-    col_a, col_b, col_c = st.columns([1,2,1])
-    with col_b:
-        password = st.text_input(L['pwd'], type="password")
+# --- 3. KIỂM TRA ĐĂNG NHẬP ---
+if 'auth' not in st.session_state: st.session_state['auth'] = False
+
+if not st.session_state['auth']:
+    st.markdown(f"<div style='text-align: center; margin-top: 40px;'><img src='{icon_url}' width='140'></div>", unsafe_allow_html=True)
+    lang_init = st.radio("CHỌN NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
+    st.session_state['lang'] = 'vi' if lang_init == "Tiếng Việt" else 'en'
+    L = text[st.session_state['lang']]
+    st.markdown(f"<h1 style='text-align: center; color: gold; font-size: 35px;'>{L['title']}</h1>", unsafe_allow_html=True)
+    _, col_mid, _ = st.columns([1, 2, 1])
+    with col_mid:
+        pw = st.text_input(L['pwd'], type="password")
         if st.button(L['btn']):
-            if password == "A1PRO":
-                st.session_state['authenticated'] = True
+            if pw == "A1PRO":
+                st.session_state['auth'] = True
                 st.rerun()
     st.stop()
 
-# --- 4. ENGINE DỮ LIỆU SIÊU TỐC (CHỐNG NGHẼN) ---
-def get_data(symbol, interval):
+L = text[st.session_state['lang']]
+
+# --- 4. ENGINE DỮ LIỆU CHUYÊN NGHIỆP ---
+def fetch_market_data(symbol, interval):
     try:
-        # Tăng timeout để iPad tải mượt hơn
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        res = requests.get(url, timeout=15).json()
-        if not isinstance(res, list) or len(res) < 10: return None
-        df = pd.DataFrame(res, columns=['Time','Open','High','Low','Close','Vol','CT','QV','T','TB','TQ','I'])
-        for c in ['Open','High','Low','Close']: df[c] = df[c].astype(float)
-        
-        # Chỉ báo chuẩn A1
-        df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
-        df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
-        delta = df['Close'].diff()
+        r = requests.get(url, timeout=10).json()
+        if not isinstance(r, list) or len(r) < 20: return None
+        df = pd.DataFrame(r, columns=['T','O','H','L','C','V','CT','QV','NT','TB','TQ','I'])
+        df[['O','H','L','C']] = df[['O','H','L','C']].astype(float)
+        df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
+        delta = df['C'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         df['RSI'] = 100 - (100 / (1 + (gain / (loss + 0.000001))))
         return df
     except: return None
 
-# --- 5. SIDEBAR (HỢP NHẤT TẤT CẢ) ---
+# --- 5. SIDEBAR ĐIỀU HÀNH ---
 with st.sidebar:
+    st.image(icon_url, width=90)
+    st.markdown("<h2 style='color: gold; text-align: center; margin-top: -10px;'>Q68 SYSTEM</h2>", unsafe_allow_html=True)
+    st.session_state['lang'] = 'vi' if st.radio("NGÔN NGỮ", ["Tiếng Việt", "English"], index=0 if st.session_state['lang']=='vi' else 1, horizontal=True) == "Tiếng Việt" else 'en'
     st.divider()
     target = st.selectbox(L['asset'], ["BTCUSDT", "PAXGUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"])
-    timeframe = st.selectbox(L['tf'], ["15m", "30m", "1h", "4h", "1d", "1w", "1M"], index=2)
-    chart_style = st.radio(L['style'], ["Candles", "Line", "Area"])
+    timeframe = st.selectbox(L['tf'], ["15m", "30m", "1h", "4h", "1d", "1w"], index=2)
+    chart_type = st.radio(L['style'], ["Candles", "Line", "Area"])
     st.divider()
     st.write(f"📲 {L['qr']}:")
-    app_url = "https://audetlbejh8appz.streamlit.app"
-    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={app_url}", width=150)
+    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://audetlbejh8appz.streamlit.app", width=140)
     if st.button("LOGOUT"):
-        st.session_state['authenticated'] = False
+        st.session_state['auth'] = False
         st.rerun()
 
-# --- 6. GIAO DIỆN CHÍNH (SỬA LỖI HIỂN THỊ) ---
-df = get_data(target, timeframe)
+# --- 6. HIỂN THỊ CHIẾN THUẬT ---
+data = fetch_market_data(target, timeframe)
 
-if df is not None:
-    price, rsi, ema20 = df['Close'].iloc[-1], df['RSI'].iloc[-1], df['EMA20'].iloc[-1]
-    asset_display = "GOLD (VÀNG)" if target == "PAXGUSDT" else target
-    st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {asset_display} ({timeframe})</h2>", unsafe_allow_html=True)
+if data is not None:
+    curr_p, rsi_v, ema_v = data['C'].iloc[-1], data['RSI'].iloc[-1], data['EMA20'].iloc[-1]
+    name = "VÀNG (GOLD)" if target == "PAXGUSDT" else target
+    st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {name} ({timeframe})</h2>", unsafe_allow_html=True)
     
-    # Biểu đồ Neon
+    # Chart
     fig = go.Figure()
-    if chart_style == "Candles":
-        fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
-    elif chart_style == "Line":
-        fig.add_trace(go.Scatter(y=df['Close'], line=dict(color='#00ffcc', width=3)))
-    else:
-        fig.add_trace(go.Scatter(y=df['Close'], fill='tozeroy', line=dict(color='gold')))
-    
-    fig.add_trace(go.Scatter(y=df['EMA20'], line=dict(color='white', width=1, dash='dot'), name='EMA20'))
-    fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+    if chart_type == "Candles": fig.add_trace(go.Candlestick(x=data.index, open=data['O'], high=data['H'], low=data['L'], close=data['C']))
+    elif chart_type == "Line": fig.add_trace(go.Scatter(y=data['C'], line=dict(color='#00ffcc', width=3)))
+    else: fig.add_trace(go.Scatter(y=data['C'], fill='tozeroy', line=dict(color='gold')))
+        fig.add_trace(go.Scatter(y=data['EMA20'], line=dict(color='white', width=1, dash='dot'), name='EMA20'))
+    fig.update_layout(height=400, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-    # TÍN HIỆU NEON 3 MÀU (CHUẨN KỸ THUẬT)
-    if price > ema20 and rsi < 70:
-        st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
-    elif price < ema20 and rsi > 30:
-        st.markdown(f'<div class="signal-box sell-neon">{L["sell"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="signal-box hold-neon">{L["hold"]}</div>', unsafe_allow_html=True)
+    # Tín hiệu NEON
+    if curr_p > ema_v and rsi_v < 70: st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
+    elif curr_p < ema_v and rsi_v > 30: st.markdown(f'<div class="signal-box sell-neon">{L["sell"]}</div>', unsafe_allow_html=True)
+    else: st.markdown(f'<div class="signal-box hold-neon">{L["hold"]}</div>', unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric(L['price'], f"${price:,.2f}")
-    c2.metric("RSI (14)", f"{rsi:.2f}")
-    c3.metric("EMA 20", f"{ema20:,.1f}")
+    m1, m2, m3 = st.columns(3)
+    m1.metric(L['price'], f"${curr_p:,.2f}")
+    m2.metric("RSI (14)", f"{rsi_v:.2f}")
+    m3.metric("EMA 20", f"{ema_v:,.1f}")
 else:
-    st.warning(L['conn'])
-    time.sleep(1)
+    st.info(L['load'])
+    time.sleep(2)
     st.rerun()
-
-st.button("🔥 ACTIVATE GLOBAL STRATEGY", use_container_width=True)
