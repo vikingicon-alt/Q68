@@ -12,7 +12,6 @@ st.set_page_config(page_title="Q68 SYSTEM GLOBAL", layout="wide", page_icon="�
 st.markdown(f"""
     <style>
         header, footer, #MainMenu {{visibility: hidden !important;}}
-        div[data-testid="stStatusWidget"] {{display: none !important;}}
         .main {{background-color: #05070a; color: white;}}
         [data-testid="stSidebar"] {{background-color: #0c0f14; border-right: 1px solid #1e2229;}}
         .signal-box {{
@@ -37,8 +36,8 @@ with st.sidebar:
     st.session_state['lang'] = 'vi' if lang_choice == "Tiếng Việt" else 'en'
 
 text = {
-    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI'},
-    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE'}
+    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI', 'err': 'Đang kết nối luồng dữ liệu...'},
+    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE', 'err': 'Connecting to live data...'}
 }
 L = text[st.session_state['lang']]
 
@@ -56,26 +55,25 @@ if not st.session_state['authenticated']:
                 st.rerun()
     st.stop()
 
-# --- 4. ENGINE DỮ LIỆU ---
+# --- 4. ENGINE DỮ LIỆU (CẢI TIẾN CHỐNG LỖI) ---
 def get_data(symbol, interval):
     try:
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        res = requests.get(url).json()
+        res = requests.get(url, timeout=10).json()
+        if not isinstance(res, list) or len(res) < 20: return None
         df = pd.DataFrame(res, columns=['Time','Open','High','Low','Close','Vol','CT','QV','T','TB','TQ','I'])
         for c in ['Open','High','Low','Close']: df[c] = df[c].astype(float)
         df['EMA20'] = df['Close'].ewm(span=20).mean()
-        df['EMA50'] = df['Close'].ewm(span=50).mean()
         delta = df['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        df['RSI'] = 100 - (100 / (1 + (gain / loss)))
+        df['RSI'] = 100 - (100 / (1 + (gain / loss + 0.000001))) # Tránh chia cho 0
         return df
     except: return None
 
-# --- 5. SIDEBAR (BỔ SUNG PAXG/VÀNG) ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
     st.divider()
-    # Đã bổ sung PAXGUSDT (Vàng) vào danh sách chọn
     target = st.selectbox(L['asset'], ["BTCUSDT", "PAXGUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"])
     timeframe = st.selectbox(L['tf'], ["15m", "30m", "1h", "4h", "1d", "1w", "1M"], index=2)
     chart_style = st.radio(L['style'], ["Candles", "Line", "Area"])
@@ -89,10 +87,15 @@ with st.sidebar:
 
 # --- 6. GIAO DIỆN CHÍNH ---
 df = get_data(target, timeframe)
-if df is not None:
-    price, rsi, ema20 = df['Close'].iloc[-1], df['RSI'].iloc[-1], df['EMA20'].iloc[-1]
-    asset_name = "GOLD (PAXG)" if target == "PAXGUSDT" else target
-    st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {asset_name} ({timeframe})</h2>", unsafe_allow_html=True)
+
+# KIỂM TRA DỮ LIỆU TRƯỚC KHI HIỂN THỊ (SỬA LỖI INDEX)
+if df is not None and not df.empty and len(df) > 0:
+    price = df['Close'].iloc[-1]
+    rsi = df['RSI'].iloc[-1]
+    ema20 = df['EMA20'].iloc[-1]
+    
+    asset_display = "GOLD (PAXG)" if target == "PAXGUSDT" else target
+    st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {asset_display} ({timeframe})</h2>", unsafe_allow_html=True)
     
     fig = go.Figure()
     if chart_style == "Candles":
@@ -106,6 +109,7 @@ if df is not None:
     fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
+    # TÍN HIỆU NEON
     if price > ema20 and rsi < 70:
         st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
     elif price < ema20 and rsi > 30:
@@ -117,5 +121,10 @@ if df is not None:
     c1.metric(L['price'], f"${price:,.2f}")
     c2.metric("RSI (14)", f"{rsi:.2f}")
     c3.metric("EMA 20", f"{ema20:,.1f}")
+else:
+    # Nếu chưa có dữ liệu, hiện thông báo chờ thay vì báo lỗi đỏ
+    st.info(L['err'])
+    time.sleep(2)
+    st.rerun()
 
 st.button("🔥 ACTIVATE GLOBAL STRATEGY", use_container_width=True)
