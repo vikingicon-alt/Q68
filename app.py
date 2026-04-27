@@ -5,63 +5,62 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# --- 1. CẤU HÌNH GIAO DIỆN CHỐNG LỖI HIỂN THỊ ---
-st.set_page_config(page_title="Q68 MASTER V23", layout="wide", page_icon="🐢")
+# --- 1. ĐỊNH DẠNG GIAO DIỆN CHUẨN IPAD (FIX MÉO VÀ LỆCH) ---
+st.set_page_config(page_title="Q68 MASTER V25", layout="wide", page_icon="🐢")
 
 st.markdown("""
 <style>
     header, footer, #MainMenu {visibility: hidden !important;}
-    .main { background: #020617 !important; }
-    [data-testid="stSidebar"] { background-color: #020617 !important; border-right: 2px solid gold; min-width: 270px !important; }
-    div.stButton > button { width: 100%; background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%); color: black; font-weight: 900; border-radius: 12px; height: 50px; border: none; }
-    .neon-card { display: flex; justify-content: space-around; padding: 18px; background: #1e293b; border-radius: 15px; border: 1px solid gold; margin-bottom: 20px; }
-    .signal { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; opacity: 0.1; border: 1px solid rgba(255,255,255,0.2); }
-    .buy-on { color: #22c55e; border-color: #22c55e; box-shadow: 0 0 15px #22c55e; opacity: 1; }
-    .sell-on { color: #ef4444; border-color: #ef4444; box-shadow: 0 0 15px #ef4444; opacity: 1; }
-    .hold-on { color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 15px #f59e0b; opacity: 1; }
+    .main { background-color: #020617 !important; }
+    /* Cố định Sidebar: Chống méo rùa và lệch chữ Q68 Master */
+    [data-testid="stSidebar"] { 
+        background-color: #0d1117 !important; 
+        border-right: 2px solid gold; 
+        min-width: 300px !important;
+    }
+    .st-emotion-cache-16idsys p { font-size: 16px; color: gold; font-weight: bold; }
+    div.stButton > button { 
+        width: 100%; background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%); 
+        color: black; font-weight: 900; border-radius: 10px; border: none; height: 48px;
+    }
+    .status-card { 
+        padding: 20px; background: #161b22; border: 2px solid gold; 
+        border-radius: 15px; text-align: center; margin-bottom: 25px;
+        box-shadow: 0 0 20px rgba(218, 165, 32, 0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. QUẢN LÝ TRẠNG THÁI (FIX LỖI TRÀN MÃ LOG) ---
+# --- 2. HỆ THỐNG ĐĂNG NHẬP (FIX LỖI TRÀN MÃ LOG) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
-if 'lang' not in st.session_state: st.session_state['lang'] = 'Việt'
-
-UI = {
-    'Việt': {'t': 'HỆ THỐNG Q68 TOÀN CẦU', 'p': 'MÃ TRUY CẬP', 'b': 'KÍCH HOẠT', 'c': 'TÀI SẢN', 'f': 'KHUNG GIỜ', 's': 'BIỂU ĐỒ', 'err': 'Đang tải dữ liệu...'},
-    'Eng': {'t': 'Q68 GLOBAL SYSTEM', 'p': 'ACCESS CODE', 'b': 'ACTIVATE', 'c': 'ASSETS', 'f': 'TIMEFRAME', 's': 'STYLE', 'err': 'Loading data...'}
-}
 
 if not st.session_state['auth']:
-    _, mid, _ = st.columns([1, 1.4, 1])
-    with mid:
-        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=150)
-        # Fix lỗi label trống gây tràn mã log như hình a2eac0d7
-        choice = st.radio("CHỌN NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
-        st.session_state['lang'] = 'Việt' if "Việt" in choice else 'Eng'
-        curr = UI[st.session_state['lang']]
-        st.markdown(f"<h2 style='text-align: center; color: gold;'>{curr['t']}</h2>", unsafe_allow_html=True)
-        pwd = st.text_input(curr['p'], type="password")
-        if st.button(curr['b']):
+    _, col, _ = st.columns([1, 1.2, 1])
+    with col:
+        st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=180)
+        st.markdown("<h2 style='color: gold;'>Q68 MASTER - A1</h2>", unsafe_allow_html=True)
+        pwd = st.text_input("NHẬP MÃ KÍCH HOẠT", type="password", key="pwd_input")
+        if st.button("XÁC NHẬN KÍCH HOẠT V25"):
             if pwd == "A1PRO":
                 st.session_state['auth'] = True
                 st.rerun()
     st.stop()
 
-curr = UI[st.session_state['lang']]
-
-# --- 3. ĐỘNG CƠ DỮ LIỆU TỐI ƯU (CHỐNG LỖI KẸT ĐỎ & INDEX) ---
+# --- 3. ĐỘNG CƠ DỮ LIỆU SIÊU TỐC (CHỐNG TREO MÀU VÀNG/ĐỎ) ---
 @st.cache_data(ttl=5)
-def fetch_data(symbol, interval):
+def get_a1_master_data(symbol, interval):
     try:
-        # Sử dụng API Binance trực tiếp với timeout cao hơn
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=150"
-        res = requests.get(url, timeout=15).json()
+        # Giả lập trình duyệt để tránh bị sàn chặn trên thiết bị di động
+        h = {'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X)'}
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=120"
+        res = requests.get(url, headers=h, timeout=15).json()
         if not isinstance(res, list) or len(res) < 50: return None
         
         df = pd.DataFrame(res, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
         df[['O','H','L','C','V']] = df[['O','H','L','C','V']].astype(float)
         
-        # CHỈ BÁO DỰ ÁN A1
+        # Chỉ báo A1 chuẩn: EMA20 & RSI14
         df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
         change = df['C'].diff()
         gain = (change.where(change > 0, 0)).rolling(14).mean()
@@ -70,56 +69,61 @@ def fetch_data(symbol, interval):
         return df
     except: return None
 
-# --- 4. SIDEBAR ĐIỀU KHIỂN (BỔ SUNG KHUNG GIỜ CÒN THIẾU) ---
+# --- 4. SIDEBAR CÂN ĐỐI TUYỆT ĐỐI (FIX MÉO) ---
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=80)
-    st.markdown("<h3 style='color: gold; text-align: center;'>Q68 MASTER</h3>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=120)
+    st.markdown("<h2 style='color: gold; margin-top: -10px;'>Q68 MASTER</h2>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
-    coin = st.selectbox(curr['c'], ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT", "BNBUSDT"])
-    # Đầy đủ khung giờ anh yêu cầu
+    
+    coin = st.selectbox("CHỌN TÀI SẢN", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PAXGUSDT"])
+    # Đầy đủ khung giờ theo đúng dự án A1
     tfs = {"15m":"15 Phút", "30m":"30 Phút", "1h":"1 Giờ", "4h":"4 Giờ", "1d":"1 Ngày", "1w":"1 Tuần", "1M":"1 Tháng"}
-    tf_k = st.selectbox(curr['f'], list(tfs.keys()), format_func=lambda x: tfs[x], index=2)
-    chart = st.radio(curr['s'], ["Candles", "Line", "Area"], horizontal=True)
+    tf = st.selectbox("KHUNG THỜI GIAN", list(tfs.keys()), format_func=lambda x: tfs[x], index=2)
+    style = st.radio("KIỂU HIỂN THỊ", ["Nến Nhật", "Dạng Đường"], horizontal=True)
+    
     st.divider()
-    # QR Code chuẩn syntax
     st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app", caption="A1 GLOBAL SYSTEM")
-    if st.button("THOÁT / LOGOUT"):
+    if st.button("THOÁT HỆ THỐNG"):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 5. HIỂN THỊ CHIẾN THUẬT ---
-df = fetch_data(coin, tf_k)
+# --- 5. HIỂN THỊ CHIẾN THUẬT & BIỂU ĐỒ ---
+df = get_a1_master_data(coin, tf)
 
 if df is not None:
-    # Fix lỗi IndexError bằng cách lấy vị trí an toàn
     last = df.iloc[-1]
     p, r, e = last['C'], last['RSI'], last['EMA20']
     
-    # ĐÈN TÍN HIỆU NEON A1
-    b_on = "buy-on" if (p > e and r < 65) else ""
-    s_on = "sell-on" if (p < e and r > 35) else ""
-    h_on = "hold-on" if not b_on and not s_on else ""
+    # Hệ thống Đèn tín hiệu A1 (Cực nhạy)
+    if p > e and r < 68:
+        msg, color = "TÍN HIỆU: MUA (BUY)", "#22c55e"
+    elif p < e and r > 32:
+        msg, color = "TÍN HIỆU: BÁN (SELL)", "#ef4444"
+    else:
+        msg, color = "TÍN HIỆU: CHỜ (WAIT)", "#f59e0b"
+        
+    st.markdown(f"""<div class="status-card"><h2 style='color: {color}; margin:0;'>{msg}</h2></div>""", unsafe_allow_html=True)
     
-    st.markdown(f'<div class="neon-card"><div class="signal {b_on}">MUA</div><div class="signal {h_on}">CHỜ</div><div class="signal {s_on}">BÁN</div></div>', unsafe_allow_html=True)
-    
-    # BIỂU ĐỒ KỸ THUẬT
+    # Biểu đồ kỹ thuật
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
-    if chart == "Candles":
+    if style == "Nến Nhật":
         fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Price"), row=1, col=1)
     else:
-        fig.add_trace(go.Scatter(y=df['C'], fill='tozeroy' if chart=="Area" else None, line=dict(color='gold', width=2), name="Price"), row=1, col=1)
-    
-    fig.add_trace(go.Bar(x=df.index, y=df['V'], marker_color='rgba(128,128,128,0.4)', name="Vol"), row=2, col=1)
-    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
+        fig.add_trace(go.Scatter(y=df['C'], fill='tozeroy', line=dict(color='gold', width=2), name="Price"), row=1, col=1)
+        
+    fig.add_trace(go.Bar(x=df.index, y=df['V'], marker_color='rgba(255,255,255,0.2)', name="Volume"), row=2, col=1)
+    fig.update_layout(height=550, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
     st.plotly_chart(fig, use_container_width=True)
     
-    # THÔNG SỐ MASTER
+    # Chỉ số Master
     c1, c2, c3 = st.columns(3)
     c1.metric("GIÁ HIỆN TẠI", f"${p:,.1f}")
     c2.metric("CHỈ SỐ RSI", f"{r:.2f}")
     c3.metric("ĐƯỜNG EMA20", f"{e:,.1f}")
 else:
-    # Fix lỗi kẹt đỏ bằng cách thông báo nhẹ nhàng và tự reload
-    st.warning(curr['err'])
-    time.sleep(2)
+    # Fix lỗi kẹt bằng cách tự động làm mới sau 3 giây
+    st.warning("Hệ thống đang đồng bộ dữ liệu thị trường... Vui lòng chờ trong giây lát!")
+    time.sleep(3)
     st.rerun()
