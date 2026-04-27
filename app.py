@@ -5,120 +5,104 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# --- 1. GIAO DIỆN CHUẨN IPAD (FIX LAYOUT) ---
-st.set_page_config(page_title="Q68 SYSTEM PRO", layout="wide", page_icon="🐢")
+# --- 1. CẤU HÌNH GIAO DIỆN LUXURY ---
+st.set_page_config(page_title="Q68 SYSTEM", layout="wide", page_icon="🐢")
 
 st.markdown("""
 <style>
     header, footer, #MainMenu {visibility: hidden !important;}
-    .main { background: #020617 !important; color: #e2e8f0; }
-    [data-testid="stSidebar"] { background-color: #020617 !important; border-right: 2px solid #FFD700; min-width: 260px !important; }
+    .main { background-color: #020617 !important; }
+    [data-testid="stSidebar"] { background-color: #020617 !important; border-right: 2px solid gold; min-width: 250px !important; }
     div.stButton > button {
         width: 100%; background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
         color: black; font-weight: bold; height: 50px; border-radius: 12px; border: none;
     }
-    .neon-box { display: flex; justify-content: space-around; padding: 15px; background: #1e293b; border-radius: 15px; border: 1px solid rgba(255,215,0,0.3); }
-    .n-light { width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; opacity: 0.1; border: 2px solid rgba(255,255,255,0.1); transition: 0.3s; }
-    .n-buy { color: #22c55e; border-color: #22c55e; box-shadow: 0 0 20px #22c55e; opacity: 1; }
-    .n-sell { color: #ef4444; border-color: #ef4444; box-shadow: 0 0 20px #ef4444; opacity: 1; }
-    .n-hold { color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 20px #f59e0b; opacity: 1; }
-    .metric-card { background: #1e293b; padding: 15px; border-radius: 12px; border-bottom: 3px solid #FFD700; text-align: center; }
+    .neon-box { display: flex; justify-content: space-around; padding: 15px; background: #1e293b; border-radius: 15px; border: 1px solid rgba(255,215,0,0.3); margin-bottom: 20px; }
+    .n-light { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; opacity: 0.1; border: 1px solid rgba(255,255,255,0.2); }
+    .n-buy { color: #22c55e; border-color: #22c55e; box-shadow: 0 0 15px #22c55e; opacity: 1; }
+    .n-sell { color: #ef4444; border-color: #ef4444; box-shadow: 0 0 15px #ef4444; opacity: 1; }
+    .n-hold { color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 15px #f59e0b; opacity: 1; }
+    .m-card { background: #1e293b; padding: 10px; border-radius: 10px; border-bottom: 3px solid gold; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG XÁC THỰC ---
-if 'authenticated' not in st.session_state:
-    st.session_state['authenticated'] = False
+# --- 2. HỆ THỐNG ĐĂNG NHẬP (KHÔNG LỖI INDENT) ---
+if 'auth' not in st.session_state:
+    st.session_state['auth'] = False
 
-if not st.session_state['authenticated']:
+if not st.session_state['auth']:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        st.markdown("<br><div style='text-align: center;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='160'></div>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center; color: gold;'>Q68 GLOBAL SYSTEM</h2>", unsafe_allow_html=True)
-        key = st.text_input("PASSWORD", type="password", placeholder="Nhập mã A1...")
-        if st.button("KÍCH HOẠT NGAY"):
+        st.markdown("<div style='text-align: center; margin-top: 50px;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='160'></div>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: gold;'>HỆ THỐNG Q68</h2>", unsafe_allow_html=True)
+        key = st.text_input("MÃ TRUY CẬP", type="password")
+        if st.button("KÍCH HOẠT HỆ THỐNG"):
             if key == "A1PRO":
-                st.session_state['authenticated'] = True
+                st.session_state['auth'] = True
                 st.rerun()
-            else: st.warning("Mã không đúng rồi anh yêu!")
     st.stop()
 
-# --- 3. DATA ENGINE (TỐI ƯU TUYỆT ĐỐI) ---
-@st.cache_data(ttl=10)
-def load_data(symbol, interval):
+# --- 3. CƠ CHẾ DỮ LIỆU AN TOÀN (FIX INDEX ERROR) ---
+@st.cache_data(ttl=12)
+def get_safe_data(symbol, tf):
     try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=150"
-        res = requests.get(url, timeout=5)
-        if res.status_code != 200: return None
-        raw = res.json()
-        if not isinstance(raw, list) or len(raw) < 50: return None
-            df = pd.DataFrame(raw, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={tf}&limit=120"
+        res = requests.get(url, timeout=5).json()
+        if not isinstance(res, list) or len(res) < 50:
+            return None
+        df = pd.DataFrame(res, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
         df[['O','H','L','C','V']] = df[['O','H','L','C','V']].astype(float)
+        # Tính EMA & RSI
         df['EMA'] = df['C'].ewm(span=20, adjust=False).mean()
-        
-        # Tính RSI an toàn
         delta = df['C'].diff()
-        up = delta.clip(lower=0)
-        down = -1 * delta.clip(upper=0)
-        ema_up = up.ewm(com=13, adjust=False).mean()
-        ema_down = down.ewm(com=13, adjust=False).mean()
-        rs = ema_up / (ema_down + 1e-10)
-        df['RSI'] = 100 - (100 / (1 + rs))
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        df['RSI'] = 100 - (100 / (1 + (gain / (loss + 1e-10))))
         return df
-    except Exception: return None
+    except:
+        return None
 
-# --- 4. SIDEBAR ĐIỀU KHIỂN ---
+# --- 4. SIDEBAR CỐ ĐỊNH ---
 with st.sidebar:
     st.markdown("<div style='text-align: center;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='90'></div>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: gold; text-align: center;'>Q68 MASTER</h3>", unsafe_allow_html=True)
+    target = st.selectbox("TÀI SẢN", ["BTCUSDT", "PAXGUSDT", "ETHUSDT"])
+    tf_val = st.selectbox("KHUNG GIỜ", ["1h", "4h", "1d", "1w"], index=0)
     st.divider()
-    coin = st.selectbox("CHỌN TÀI SẢN", ["BTCUSDT", "PAXGUSDT", "ETHUSDT", "SOLUSDT"])
-    tf = st.selectbox("KHUNG GIỜ", ["15m", "1h", "4h", "1d"], index=1)
-    chart_type = st.radio("KIỂU NẾN", ["Candlestick", "Area Chart"], horizontal=True)
-    st.divider()
-    st.markdown("<p style='text-align: center; font-size: 11px;'>SCAN TO SHARE</p>", unsafe_allow_html=True)
-    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app")
+    qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app"
+    st.image(qr_url, use_container_width=True)
     if st.button("THOÁT"):
-        st.session_state['authenticated'] = False
+        st.session_state['auth'] = False
         st.rerun()
 
-# --- 5. HIỂN THỊ CHÍNH ---
-data = load_data(coin, tf)
+# --- 5. GIAO DIỆN CHÍNH ---
+df = get_safe_data(target, tf_val)
 
-if data is not None and not data.empty:
-    last = data.iloc[-1]
-    p, r, e, v = last['C'], last['RSI'], last['EMA'], last['V']
+if df is not None:
+    # Lấy dữ liệu an toàn
+    last_row = df.iloc[-1]
+    p, r, e, v = last_row['C'], last_row['RSI'], last_row['EMA'], last_row['V']
     
-    # Logic đèn tín hiệu Neon (Chính xác)
-    buy_on = "n-buy" if (p > e and r < 65) else ""
-    sell_on = "n-sell" if (p < e and r > 35) else ""
-    hold_on = "n-hold" if not buy_on and not sell_on else ""
+    # Tín hiệu đèn Neon
+    b_c = "n-buy" if (p > e and r < 65) else ""
+    s_c = "n-sell" if (p < e and r > 35) else ""
+    h_c = "n-hold" if not b_c and not s_c else ""
     
-    st.markdown(f"""
-    <div class="neon-box">
-        <div class="n-light {buy_on}">MUA</div>
-        <div class="n-light {hold_on}">CHỜ</div>
-        <div class="n-light {sell_on}">BÁN</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="neon-box"><div class="n-light {b_c}">MUA</div><div class="n-light {h_c}">CHỜ</div><div class="n-light {s_c}">BÁN</div></div>', unsafe_allow_html=True)
     
-    # Biểu đồ kỹ thuật
+    # Biểu đồ chuyên sâu
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
-    if chart_type == "Candlestick":
-        fig.add_trace(go.Candlestick(x=data.index, open=data['O'], high=data['H'], low=data['L'], close=data['C'], name="Price"), row=1, col=1)
-    else:
-        fig.add_trace(go.Scatter(y=data['C'], fill='tozeroy', line=dict(color='gold', width=2), name="Price"), row=1, col=1)
-    
-    fig.add_trace(go.Bar(x=data.index, y=data['V'], marker_color='rgba(128,128,128,0.5)', name="Volume"), row=2, col=1)
-    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
+    fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Nến"), row=1, col=1)
+    fig.add_trace(go.Bar(x=df.index, y=df['V'], marker_color='gray', name="Vol"), row=2, col=1)
+    fig.update_layout(height=480, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
     st.plotly_chart(fig, use_container_width=True)
     
-    # Thông số Metric
+    # Các thẻ thông số
     m1, m2, m3 = st.columns(3)
-    with m1: st.markdown(f'<div class="metric-card"><small>PRICE</small><h4>${p:,.1f}</h4></div>', unsafe_allow_html=True)
-    with m2: st.markdown(f'<div class="metric-card"><small>RSI (14)</small><h4>{r:.2f}</h4></div>', unsafe_allow_html=True)
-    with m3: st.markdown(f'<div class="metric-card"><small>VOLUME</small><h4>{v:,.0f}</h4></div>', unsafe_allow_html=True)
+    with m1: st.markdown(f'<div class="m-card"><small>GIÁ</small><h4>${p:,.1f}</h4></div>', unsafe_allow_html=True)
+    with m2: st.markdown(f'<div class="m-card"><small>RSI</small><h4>{r:.2f}</h4></div>', unsafe_allow_html=True)
+    with m3: st.markdown(f'<div class="m-card"><small>VOL</small><h4>{v:,.0f}</h4></div>', unsafe_allow_html=True)
 else:
-    st.info("🔄 Đang tối ưu kết nối dữ liệu...")
-    time.sleep(2)
+    st.warning("⚠️ Đang đồng bộ dữ liệu thị trường...")
+    time.sleep(3)
     st.rerun()
