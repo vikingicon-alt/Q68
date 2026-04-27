@@ -4,71 +4,85 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# --- 1. CẤU HÌNH HỆ THỐNG ---
-st.set_page_config(page_title="Q68 SYSTEM GLOBAL", layout="wide", page_icon="🐢")
+# --- 1. THIẾT KẾ GIAO DIỆN ĐẲNG CẤP (UI/UX LUXURY) ---
+st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
-# Giao diện chuẩn quốc tế
 st.markdown("""
     <style>
+        /* Tổng thể nền tối sâu và font chữ hiện đại */
         header, footer, #MainMenu {visibility: hidden !important;}
-        .main {background-color: #05070a; color: white;}
-        [data-testid="stSidebar"] {background-color: #0c0f14; border-right: 1px solid #1e2229;}
-        .signal-box {
-            padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; font-size: 28px;
-            margin-bottom: 20px; text-transform: uppercase;
+        .main { background: radial-gradient(circle, #0f172a 0%, #020617 100%); color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+        
+        /* Sidebar chuyên nghiệp */
+        [data-testid="stSidebar"] { background-color: #020617; border-right: 1px solid #1e293b; min-width: 300px; }
+        
+        /* Cải thiện khung đăng nhập & Nút bấm */
+        .stTextInput > div > div > input { background-color: #1e293b; color: gold; border: 1px solid #334155; border-radius: 8px; height: 45px; text-align: center; font-size: 18px; }
+        div.stButton > button { 
+            width: 100%; background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); 
+            color: black; font-weight: 900; border-radius: 12px; border: none; height: 55px; 
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); transition: 0.3s;
         }
-        .buy-neon { border: 3px solid #00ffcc; color: #00ffcc; text-shadow: 0 0 15px #00ffcc; }
-        .sell-neon { border: 3px solid #ff3366; color: #ff3366; text-shadow: 0 0 15px #ff3366; }
-        .hold-neon { border: 3px solid #ffcc00; color: #ffcc00; text-shadow: 0 0 15px #ffcc00; }
-        div.stButton > button { width: 100%; background: gold; color: black; font-weight: bold; border-radius: 10px; height: 50px; }
+        div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5); }
+
+        /* Khung thông số Metric */
+        .stMetric { background: #1e293b; padding: 20px; border-radius: 15px; border-left: 5px solid gold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        
+        /* Tín hiệu Signal Lux */
+        .signal-card {
+            padding: 30px; border-radius: 20px; text-align: center; font-weight: 800; font-size: 32px;
+            margin-bottom: 25px; letter-spacing: 3px; border: 2px solid rgba(255,215,0,0.2);
+            background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px);
+        }
+        .buy-txt { color: #22c55e; text-shadow: 0 0 15px rgba(34, 197, 94, 0.6); }
+        .sell-txt { color: #ef4444; text-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+        .hold-txt { color: #f59e0b; text-shadow: 0 0 15px rgba(245, 158, 11, 0.6); }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BỘ TỪ ĐIỂN SONG NGỮ (ĐỒNG BỘ 100%) ---
+# --- 2. HỆ THỐNG NGÔN NGỮ ĐỒNG BỘ ---
 if 'lang' not in st.session_state: st.session_state['lang'] = 'vi'
-
-translations = {
+L_DB = {
     'vi': {
-        'title': 'HỆ THỐNG Q68 TOÀN CẦU', 'pwd': 'MÃ TRUY CẬP:', 'btn_act': 'KÍCH HOẠT HỆ THỐNG',
-        'asset': 'TÀI SẢN', 'tf': 'KHUNG GIỜ', 'style': 'MẪU ĐỒ THỊ', 'logout': 'ĐĂNG XUẤT',
-        'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: CHỜ (HOLD)',
-        'price': 'GIÁ HIỆN TẠI', 'sync': '🔄 Đang đồng bộ dữ liệu thế giới...', 'share': 'QUÉT ĐỂ CHIA SẺ'
+        'title': 'HỆ THỐNG Q68 TOÀN CẦU', 'pwd': 'MÃ TRUY CẬP HỆ THỐNG', 'btn_act': 'KÍCH HOẠT NGAY',
+        'asset': 'CHỌN TÀI SẢN', 'tf': 'KHUNG THỜI GIAN', 'style': 'LOẠI BIỂU ĐỒ', 'logout': 'THOÁT',
+        'buy': '🔥 TÍN HIỆU: MUA (BUY)', 'sell': '❄️ TÍN HIỆU: BÁN (SELL)', 'hold': '⚠️ TÍN HIỆU: CHỜ (HOLD)',
+        'price': 'GIÁ THỊ TRƯỜNG', 'rsi': 'CHỈ SỐ RSI', 'ema': 'ĐƯỜNG EMA 20'
     },
     'en': {
-        'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'ACCESS KEY:', 'btn_act': 'ACTIVATE SYSTEM',
-        'asset': 'ASSET', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'logout': 'LOGOUT',
+        'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM ACCESS KEY', 'btn_act': 'ACTIVATE NOW',
+        'asset': 'SELECT ASSET', 'tf': 'TIMEFRAME', 'style': 'CHART TYPE', 'logout': 'LOGOUT',
         'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD',
-        'price': 'CURRENT PRICE', 'sync': '🔄 Syncing global data...', 'share': 'SCAN TO SHARE'
+        'price': 'MARKET PRICE', 'rsi': 'RSI INDEX', 'ema': 'EMA 20 LINE'
     }
 }
 
-# --- 3. KIỂM TRA ĐĂNG NHẬP ---
+# --- 3. LOGIC ĐĂNG NHẬP (CĂN CHỈNH ĐẸP) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 
-def login():
-    st.markdown("<div style='text-align: center; margin-top: 50px;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='140'></div>", unsafe_allow_html=True)
-    # Chọn ngôn ngữ ngay tại màn hình chờ
-    lang_select = st.radio("CHỌN NGÔN NGỮ / SELECT LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
-    st.session_state['lang'] = 'vi' if lang_select == "Tiếng Việt" else 'en'
-    L = translations[st.session_state['lang']]
-    
-    st.markdown(f"<h1 style='text-align: center; color: gold;'>{L['title']}</h1>", unsafe_allow_html=True)
-    _, col, _ = st.columns([1, 1.5, 1])
-    with col:
-        pwd = st.text_input(L['pwd'], type="password")
+def show_login():
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        st.markdown(f"<div style='text-align: center; margin-top: 30px;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='160'></div>", unsafe_allow_html=True)
+        lang_pick = st.radio(" ", ["Tiếng Việt", "English"], horizontal=True, label_visibility="collapsed")
+        st.session_state['lang'] = 'vi' if lang_pick == "Tiếng Việt" else 'en'
+        L = L_DB[st.session_state['lang']]
+        
+        st.markdown(f"<h1 style='text-align: center; color: gold; font-size: 42px; margin-bottom: 30px;'>{L['title']}</h1>", unsafe_allow_html=True)
+        pwd = st.text_input(L['pwd'], type="password", placeholder="••••••••")
+        st.write(" ")
         if st.button(L['btn_act']):
             if pwd == "A1PRO":
                 st.session_state['auth'] = True
                 st.rerun()
     st.stop()
 
-if not st.session_state['auth']: login()
+if not st.session_state['auth']: show_login()
+L = L_DB[st.session_state['lang']]
 
-L = translations[st.session_state['lang']]
-
-# --- 4. ENGINE DỮ LIỆU ---
-@st.cache_data(ttl=15)
-def get_data(symbol, tf):
+# --- 4. DATA ENGINE ---
+@st.cache_data(ttl=10)
+def fetch_global_data(symbol, tf):
     try:
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={tf}&limit=100"
         r = requests.get(url, timeout=10).json()
@@ -82,57 +96,52 @@ def get_data(symbol, tf):
         return df
     except: return None
 
-# --- 5. SIDEBAR ĐIỀU HÀNH ---
+# --- 5. SIDEBAR (BỐ CỤC CHẶT CHẼ) ---
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=90)
-    # Nút chuyển ngôn ngữ trong Sidebar cũng đồng bộ
-    new_lang = st.radio("LANGUAGE", ["Tiếng Việt", "English"], index=0 if st.session_state['lang'] == 'vi' else 1, horizontal=True)
-    st.session_state['lang'] = 'vi' if new_lang == "Tiếng Việt" else 'en'
-    L = translations[st.session_state['lang']] # Cập nhật từ điển ngay lập tức
-    
+    st.markdown("<div style='text-align: center;'><img src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png' width='100'></div>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: gold; text-align: center;'>Q68 GLOBAL ADVISOR</h3>", unsafe_allow_html=True)
     st.divider()
     target = st.selectbox(L['asset'], ["BTCUSDT", "PAXGUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"])
-    timeframe = st.selectbox(L['tf'], ["15m", "1h", "4h", "1d"], index=1)
-    chart_style = st.radio(L['style'], ["Candles", "Line", "Area"])
+    tf = st.selectbox(L['tf'], ["15m", "1h", "4h", "1d"], index=1)
+    style = st.radio(L['style'], ["Candles", "Line"], horizontal=True)
     st.divider()
-    st.write(f"📲 {L['share']}:")
-    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://audetlbejh8appz.streamlit.app", width=140)
-    if st.button(L['logout']):
+    st.write("📲 SHARE ACCESS:")
+    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://audetlbejh8appz.streamlit.app", width=140)if st.button(L['logout']):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 6. HIỂN THỊ CHÍNH ---
-df = get_data(target, timeframe)
-
+# --- 6. MAIN DASHBOARD ---
+df = fetch_global_data(target, tf)
 if df is not None:
-    price, rsi, ema = df['C'].iloc[-1], df['RSI'].iloc[-1], df['EMA20'].iloc[-1]
-    asset_name = "GOLD (VÀNG)" if target == "PAXGUSDT" else target
-    st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {asset_name} ({timeframe})</h2>", unsafe_allow_html=True)
+    p, r, e = df['C'].iloc[-1], df['RSI'].iloc[-1], df['EMA20'].iloc[-1]
+    name = "GOLD / USD" if target == "PAXGUSDT" else f"{target[:-4]} / USDT"
     
+    st.markdown(f"<h2 style='text-align: center; color: gold; letter-spacing: 2px;'>{name} ANALYTICS ({tf})</h2>", unsafe_allow_html=True)
+    
+    # Chart tinh chỉnh
     fig = go.Figure()
-    if chart_style == "Candles":
-        fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C']))
-    elif chart_style == "Line":
-        fig.add_trace(go.Scatter(y=df['C'], line=dict(color='#00ffcc', width=3)))
+    if style == "Candles":
+        fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Price"))
     else:
-        fig.add_trace(go.Scatter(y=df['C'], fill='tozeroy', line=dict(color='gold')))
-        fig.add_trace(go.Scatter(y=df['EMA20'], line=dict(color='white', width=1, dash='dot'), name='EMA20'))
-    fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+        fig.add_trace(go.Scatter(y=df['C'], line=dict(color='#3b82f6', width=3), fill='tozeroy', name="Price"))
+    
+    fig.add_trace(go.Scatter(y=df['EMA20'], line=dict(color='gold', width=1.5, dash='dot'), name="EMA 20"))
+    fig.update_layout(height=480, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tín hiệu NEON chuẩn xác
-    if price > ema and rsi < 70:
-        st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
-    elif price < ema and rsi > 30:
-        st.markdown(f'<div class="signal-box sell-neon">{L["sell"]}</div>', unsafe_allow_html=True)
+    # Signal Card Luxury
+    if p > e and r < 70:
+        st.markdown(f'<div class="signal-card buy-txt">{L["buy"]}</div>', unsafe_allow_html=True)
+    elif p < e and r > 30:
+        st.markdown(f'<div class="signal-card sell-txt">{L["sell"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="signal-box hold-neon">{L["hold"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="signal-card hold-txt">{L["hold"]}</div>', unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric(L['price'], f"${price:,.2f}")
-    c2.metric("RSI (14)", f"{rsi:.2f}")
-    c3.metric("EMA 20", f"{ema:,.1f}")
+    m1, m2, m3 = st.columns(3)
+    m1.metric(L['price'], f"${p:,.2f}")
+    m2.metric(L['rsi'], f"{r:.2f}")
+    m3.metric(L['ema'], f"{e:,.1f}")
 else:
-    st.info(L['sync'])
+    st.warning("⚡ Connecting to Global Market... Please wait.")
     time.sleep(2)
     st.rerun()
