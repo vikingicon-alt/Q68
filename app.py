@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# --- 1. THIẾT LẬP THƯƠNG HIỆU & ICON Q68 ---
+# --- 1. THIẾT LẬP THƯƠNG HIỆU & ICON Q68 (CHỐNG LỖI CACHE) ---
 icon_q68 = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
 
 st.set_page_config(page_title="Q68 SYSTEM GLOBAL", layout="wide", page_icon="🐢")
@@ -36,8 +36,8 @@ with st.sidebar:
     st.session_state['lang'] = 'vi' if lang_choice == "Tiếng Việt" else 'en'
 
 text = {
-    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI', 'err': 'Đang kết nối luồng dữ liệu...'},
-    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE', 'err': 'Connecting to live data...'}
+    'vi': {'title': 'Q68 SYSTEM GLOBAL', 'pwd': 'MÃ KÍCH HOẠT HỆ THỐNG:', 'btn': 'KÍCH HOẠT', 'asset': 'TÀI SẢN (VÀNG/COIN)', 'tf': 'KHUNG THỜI GIAN', 'style': 'MẪU ĐỒ THỊ', 'qr': 'QUÉT ĐỂ CHIA SẺ', 'buy': '🔥 LỆNH: MUA (BUY)', 'sell': '❄️ LỆNH: BÁN (SELL)', 'hold': '⚠️ LỆNH: GIỮ (HOLD)', 'price': 'GIÁ HIỆN TẠI', 'conn': 'Đang kết nối luồng dữ liệu...'},
+    'en': {'title': 'Q68 GLOBAL SYSTEM', 'pwd': 'SYSTEM PASSWORD:', 'btn': 'ACTIVATE', 'asset': 'ASSET (GOLD/COIN)', 'tf': 'TIMEFRAME', 'style': 'CHART STYLE', 'qr': 'SCAN TO SHARE', 'buy': '🔥 SIGNAL: BUY', 'sell': '❄️ SIGNAL: SELL', 'hold': '⚠️ SIGNAL: HOLD', 'price': 'CURRENT PRICE', 'conn': 'Connecting to live data...'}
 }
 L = text[st.session_state['lang']]
 
@@ -55,23 +55,27 @@ if not st.session_state['authenticated']:
                 st.rerun()
     st.stop()
 
-# --- 4. ENGINE DỮ LIỆU (CẢI TIẾN CHỐNG LỖI) ---
+# --- 4. ENGINE DỮ LIỆU SIÊU TỐC (CHỐNG NGHẼN) ---
 def get_data(symbol, interval):
     try:
+        # Tăng timeout để iPad tải mượt hơn
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        res = requests.get(url, timeout=10).json()
-        if not isinstance(res, list) or len(res) < 20: return None
+        res = requests.get(url, timeout=15).json()
+        if not isinstance(res, list) or len(res) < 10: return None
         df = pd.DataFrame(res, columns=['Time','Open','High','Low','Close','Vol','CT','QV','T','TB','TQ','I'])
         for c in ['Open','High','Low','Close']: df[c] = df[c].astype(float)
-        df['EMA20'] = df['Close'].ewm(span=20).mean()
+        
+        # Chỉ báo chuẩn A1
+        df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+        df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
         delta = df['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        df['RSI'] = 100 - (100 / (1 + (gain / loss + 0.000001))) # Tránh chia cho 0
+        df['RSI'] = 100 - (100 / (1 + (gain / (loss + 0.000001))))
         return df
     except: return None
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR (HỢP NHẤT TẤT CẢ) ---
 with st.sidebar:
     st.divider()
     target = st.selectbox(L['asset'], ["BTCUSDT", "PAXGUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"])
@@ -85,18 +89,15 @@ with st.sidebar:
         st.session_state['authenticated'] = False
         st.rerun()
 
-# --- 6. GIAO DIỆN CHÍNH ---
+# --- 6. GIAO DIỆN CHÍNH (SỬA LỖI HIỂN THỊ) ---
 df = get_data(target, timeframe)
 
-# KIỂM TRA DỮ LIỆU TRƯỚC KHI HIỂN THỊ (SỬA LỖI INDEX)
-if df is not None and not df.empty and len(df) > 0:
-    price = df['Close'].iloc[-1]
-    rsi = df['RSI'].iloc[-1]
-    ema20 = df['EMA20'].iloc[-1]
-    
-    asset_display = "GOLD (PAXG)" if target == "PAXGUSDT" else target
+if df is not None:
+    price, rsi, ema20 = df['Close'].iloc[-1], df['RSI'].iloc[-1], df['EMA20'].iloc[-1]
+    asset_display = "GOLD (VÀNG)" if target == "PAXGUSDT" else target
     st.markdown(f"<h2 style='text-align: center; color: gold;'>🐢 Q68 | {asset_display} ({timeframe})</h2>", unsafe_allow_html=True)
     
+    # Biểu đồ Neon
     fig = go.Figure()
     if chart_style == "Candles":
         fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
@@ -109,7 +110,7 @@ if df is not None and not df.empty and len(df) > 0:
     fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#05070a", plot_bgcolor="#05070a", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-    # TÍN HIỆU NEON
+    # TÍN HIỆU NEON 3 MÀU (CHUẨN KỸ THUẬT)
     if price > ema20 and rsi < 70:
         st.markdown(f'<div class="signal-box buy-neon">{L["buy"]}</div>', unsafe_allow_html=True)
     elif price < ema20 and rsi > 30:
@@ -122,9 +123,8 @@ if df is not None and not df.empty and len(df) > 0:
     c2.metric("RSI (14)", f"{rsi:.2f}")
     c3.metric("EMA 20", f"{ema20:,.1f}")
 else:
-    # Nếu chưa có dữ liệu, hiện thông báo chờ thay vì báo lỗi đỏ
-    st.info(L['err'])
-    time.sleep(2)
+    st.warning(L['conn'])
+    time.sleep(1)
     st.rerun()
 
 st.button("🔥 ACTIVATE GLOBAL STRATEGY", use_container_width=True)
