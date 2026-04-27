@@ -1,108 +1,95 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import requests
 import time
 
-# --- 1. CẤU TRÚC GIAO DIỆN SIÊU CỨNG (FIX LỖI MẤT NGÔN NGỮ & MÉO) ---
-st.set_page_config(page_title="Q68 V26", layout="wide")
+# --- 1. CẤU TRÚC GIAO DIỆN SIÊU TINH GỌN (CHỐNG TREO) ---
+st.set_page_config(page_title="A1 MASTER V27", layout="wide")
 
 st.markdown("""
 <style>
     header, footer, #MainMenu {visibility: hidden !important;}
-    .main { background-color: #020617 !important; }
-    [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 2px solid #FFD700; min-width: 300px !important; }
-    .st-emotion-cache-16idsys p { color: #FFD700; font-weight: bold; font-size: 18px; }
-    div.stButton > button { width: 100%; background: linear-gradient(135deg, #FFD700, #B8860B); color: black; font-weight: 900; border-radius: 12px; height: 50px; }
-    .status-box { padding: 25px; background: #161b22; border: 3px solid #FFD700; border-radius: 20px; text-align: center; margin-bottom: 30px; box-shadow: 0 0 25px rgba(255, 215, 0, 0.4); }
+    .main { background-color: #0d1117 !important; }
+    [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 2px solid gold; min-width: 260px !important; }
+    .stMetric { background-color: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid gold; }
+    div.stButton > button { width: 100%; background: linear-gradient(to right, #FFD700, #FFA500); color: black; font-weight: 900; border-radius: 10px; height: 50px; border: none; }
+    .signal-header { padding: 20px; text-align: center; border-radius: 15px; margin-bottom: 25px; font-weight: bold; border: 2px solid gold; font-size: 24px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. QUẢN LÝ TRẠNG THÁI ---
+# --- 2. HỆ THỐNG XÁC THỰC ĐỒNG NHẤT (FIX LỖI ff6a0287) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 
 if not st.session_state['auth']:
-    _, col, _ = st.columns([1, 1.5, 1])
+    _, col, _ = st.columns([1, 1.2, 1])
     with col:
         st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=160)
-        st.markdown("<h2 style='color: gold;'>A1 GLOBAL SYSTEM</h2>", unsafe_allow_html=True)
-        # Fix lỗi mất chọn ngôn ngữ bằng cách tích hợp thẳng vào đây
-        lang = st.radio("CHỌN NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
-        pwd = st.text_input("PASSWORD (A1PRO)", type="password")
-        if st.button("KÍCH HOẠT V26"):
+        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=140)
+        st.markdown("<h2 style='color: gold;'>HỆ THỐNG A1 GLOBAL</h2>", unsafe_allow_html=True)
+        # Đảm bảo 100% tiếng Việt đồng nhất
+        st.write("---")
+        pwd = st.text_input("MẬT KHẨU TRUY CẬP (A1PRO)", type="password")
+        if st.button("KÍCH HOẠT HỆ THỐNG"):
             if pwd == "A1PRO":
                 st.session_state['auth'] = True
                 st.rerun()
+            else: st.error("Mật khẩu không chính xác!")
     st.stop()
 
-# --- 3. ĐỘNG CƠ DỮ LIỆU ĐẶC BIỆT (CHỐNG TREO THANH VÀNG) ---
-@st.cache_data(ttl=5)
-def fetch_a1_data(symbol, interval):
-    # Thử nhiều cổng kết nối khác nhau để iPad không chặn
-    endpoints = [
-        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100",
-        f"https://api1.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100",
-        f"https://api2.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-    ]
-    for url in endpoints:
-        try:
-            res = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'}).json()
-            if isinstance(res, list) and len(res) > 50:
-                df = pd.DataFrame(res, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
-                df[['O','H','L','C','V']] = df[['O','H','L','C','V']].astype(float)
-                # Tính toán A1
-                df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
-                diff = df['C'].diff()
-                u, d = (diff.where(diff > 0, 0)).rolling(14).mean(), (-diff.where(diff < 0, 0)).rolling(14).mean()
-                df['RSI'] = 100 - (100 / (1 + (u / (d + 1e-10))))
-                return df
-        except: continue
-    return None
+# --- 3. LẤY DỮ LIỆU TỐI GIẢN (ÉP IPAD PHẢI HIỂN THỊ) ---
+def fetch_data_direct(symbol, interval):
+    try:
+        # Dùng link API cơ bản nhất để không bị chặn
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=80"
+        r = requests.get(url, timeout=5).json()
+        df = pd.DataFrame(r, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
+        df['C'] = df['C'].astype(float)
+        # Chỉ báo A1 chuẩn của Anh
+        df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
+        diff = df['C'].diff()
+        u, d = (diff.where(diff > 0, 0)).rolling(14).mean(), (-diff.where(diff < 0, 0)).rolling(14).mean()
+        df['RSI'] = 100 - (100 / (1 + (u / (d + 1e-10))))
+        return df
+    except: return None
 
-# --- 4. SIDEBAR CÂN ĐỐI (FIX MÉO V25) ---
+# --- 4. SIDEBAR ĐIỀU KHIỂN CÂN ĐỐI ---
 with st.sidebar:
     st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=120)
-    st.markdown("<h2 style='color: gold; margin-top: -10px;'>Q68 MASTER</h2>", unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=100)
+    st.markdown("<h3 style='color: gold;'>Q68 MASTER</h3>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
-    coin = st.selectbox("CHỌN MÃ", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT"])
-    tfs = {"15m":"15 Phút", "1h":"1 Giờ", "4h":"4 Giờ", "1d":"1 Ngày", "1w":"1 Tuần", "1M":"1 Tháng"}
-    tf = st.selectbox("KHUNG GIỜ", list(tfs.keys()), format_func=lambda x: tfs[x], index=1)
+    
+    coin = st.selectbox("CHỌN TÀI SẢN", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT"])
+    tf = st.selectbox("KHUNG THỜI GIAN", ["15m", "1h", "4h", "1d", "1w"], index=1)
+    
     st.divider()
-    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app")
-    if st.button("LOGOUT / THOÁT"):
+    if st.button("THOÁT HỆ THỐNG"):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 5. HIỂN THỊ CHIẾN THUẬT ---
-df = fetch_a1_data(coin, tf)
+# --- 5. HIỂN THỊ CHIẾN THUẬT VÀ BIỂU ĐỒ ---
+df = fetch_data_direct(coin, tf)
 
 if df is not None:
-    curr = df.iloc[-1]
-    p, r, e = curr['C'], curr['RSI'], curr['EMA20']
+    last = df.iloc[-1]
+    p, r, e = last['C'], last['RSI'], last['EMA20']
     
-    # Tín hiệu đèn A1
-    if p > e and r < 68: msg, clr = "LỆNH: MUA (BUY)", "#22c55e"
-    elif p < e and r > 32: msg, clr = "LỆNH: BÁN (SELL)", "#ef4444"
-    else: msg, clr = "LỆNH: CHỜ (WAIT)", "#f59e0b"
+    # Tín hiệu A1 chuẩn mực
+    if p > e and r < 70:
+        st.markdown(f'<div class="signal-header" style="background:#064e3b; color:#10b981;">TÍN HIỆU: MUA (BULLISH)</div>', unsafe_allow_html=True)
+    elif p < e and r > 30:
+        st.markdown(f'<div class="signal-header" style="background:#450a0a; color:#ef4444;">TÍN HIỆU: BÁN (BEARISH)</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="signal-header" style="background:#451a03; color:#f59e0b;">TÍN HIỆU: THEO DÕI</div>', unsafe_allow_html=True)
     
-    st.markdown(f'<div class="status-box"><h1 style="color:{clr}; margin:0;">{msg}</h1></div>', unsafe_allow_html=True)
+    # Biểu đồ cực nhẹ cho iPad (Fix lỗi liệt màn hình)
+    st.line_chart(df[['C', 'EMA20']])
     
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
-    fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Giá"), row=1, col=1)
-    fig.add_trace(go.Bar(x=df.index, y=df['V'], marker_color='gray', name="Volume"), row=2, col=1)
-    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
-    st.plotly_chart(fig, use_container_width=True)
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("GIÁ", f"${p:,.1f}")
-    c2.metric("RSI", f"{r:.2f}")
-    c3.metric("EMA20", f"{e:,.1f}")
+    col1, col2 = st.columns(2)
+    col1.metric("GIÁ HIỆN TẠI", f"${p:,.1f}")
+    col2.metric("CHỈ SỐ RSI", f"{r:.2f}")
 else:
-    # Cơ chế "Cứu vãn" khi bị kẹt thanh vàng
-    st.error("⚠️ iPad đang chặn kết nối. Em đang thử lại cổng dự phòng...")
-    time.sleep(2)
+    st.error("⚠️ iPad đang chặn dữ liệu. Đang kết nối lại sau 3 giây...")
+    time.sleep(3)
     st.rerun()
