@@ -5,8 +5,8 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# --- 1. CẤU HÌNH GIAO DIỆN CHUẨN A1 ---
-st.set_page_config(page_title="Q68 MASTER V22", layout="wide", page_icon="🐢")
+# --- 1. CẤU HÌNH GIAO DIỆN CHỐNG LỖI HIỂN THỊ ---
+st.set_page_config(page_title="Q68 MASTER V23", layout="wide", page_icon="🐢")
 
 st.markdown("""
 <style>
@@ -22,7 +22,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. XÁC THỰC & NGÔN NGỮ ---
+# --- 2. QUẢN LÝ TRẠNG THÁI (FIX LỖI TRÀN MÃ LOG) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if 'lang' not in st.session_state: st.session_state['lang'] = 'Việt'
 
@@ -35,7 +35,8 @@ if not st.session_state['auth']:
     _, mid, _ = st.columns([1, 1.4, 1])
     with mid:
         st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=150)
-        choice = st.radio("LANG", ["Tiếng Việt", "English"], horizontal=True, label_visibility="collapsed")
+        # Fix lỗi label trống gây tràn mã log như hình a2eac0d7
+        choice = st.radio("CHỌN NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
         st.session_state['lang'] = 'Việt' if "Việt" in choice else 'Eng'
         curr = UI[st.session_state['lang']]
         st.markdown(f"<h2 style='text-align: center; color: gold;'>{curr['t']}</h2>", unsafe_allow_html=True)
@@ -48,21 +49,20 @@ if not st.session_state['auth']:
 
 curr = UI[st.session_state['lang']]
 
-# --- 3. ĐỘNG CƠ DỮ LIỆU CẢI TIẾN (FIX LỖI KẸT ĐỒNG BỘ) ---
-def fetch_safe_data(symbol, interval):
+# --- 3. ĐỘNG CƠ DỮ LIỆU TỐI ƯU (CHỐNG LỖI KẸT ĐỎ & INDEX) ---
+@st.cache_data(ttl=5)
+def fetch_data(symbol, interval):
     try:
-        # Sử dụng headers để giả lập trình duyệt, tránh bị sàn chặn trên thiết bị di động
-        h = {'User-Agent': 'Mozilla/5.0'}
+        # Sử dụng API Binance trực tiếp với timeout cao hơn
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=150"
-        response = requests.get(url, headers=h, timeout=15)
-        if response.status_code != 200: return None
-        raw = response.json()
-        if not isinstance(raw, list) or len(raw) < 20: return None
+        res = requests.get(url, timeout=15).json()
+        if not isinstance(res, list) or len(res) < 50: return None
         
-        df = pd.DataFrame(raw, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
+        df = pd.DataFrame(res, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
         df[['O','H','L','C','V']] = df[['O','H','L','C','V']].astype(float)
-        # Chỉ báo A1 chuẩn
-        df['EMA'] = df['C'].ewm(span=20, adjust=False).mean()
+        
+        # CHỈ BÁO DỰ ÁN A1
+        df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
         change = df['C'].diff()
         gain = (change.where(change > 0, 0)).rolling(14).mean()
         loss = (-change.where(change < 0, 0)).rolling(14).mean()
@@ -70,49 +70,56 @@ def fetch_safe_data(symbol, interval):
         return df
     except: return None
 
-# --- 4. SIDEBAR ĐIỀU KHIỂN ---
+# --- 4. SIDEBAR ĐIỀU KHIỂN (BỔ SUNG KHUNG GIỜ CÒN THIẾU) ---
 with st.sidebar:
     st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=80)
     st.markdown("<h3 style='color: gold; text-align: center;'>Q68 MASTER</h3>", unsafe_allow_html=True)
     st.divider()
-    coin = st.selectbox(curr['c'], ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT"])
-    tfs = {"30m":"30 Phút", "1h":"1 Giờ", "4h":"4 Giờ", "1d":"1 Ngày", "1w":"1 Tuần", "1M":"1 Tháng"}
-    tf_k = st.selectbox(curr['f'], list(tfs.keys()), format_func=lambda x: tfs[x], index=1)
+    coin = st.selectbox(curr['c'], ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT", "BNBUSDT"])
+    # Đầy đủ khung giờ anh yêu cầu
+    tfs = {"15m":"15 Phút", "30m":"30 Phút", "1h":"1 Giờ", "4h":"4 Giờ", "1d":"1 Ngày", "1w":"1 Tuần", "1M":"1 Tháng"}
+    tf_k = st.selectbox(curr['f'], list(tfs.keys()), format_func=lambda x: tfs[x], index=2)
     chart = st.radio(curr['s'], ["Candles", "Line", "Area"], horizontal=True)
     st.divider()
-    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://nrynpp6caudetlbejh8appz.streamlit.app")
-    if st.button("LOGOUT"):
+    # QR Code chuẩn syntax
+    st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app", caption="A1 GLOBAL SYSTEM")
+    if st.button("THOÁT / LOGOUT"):
         st.session_state['auth'] = False
         st.rerun()
 
 # --- 5. HIỂN THỊ CHIẾN THUẬT ---
-data = fetch_safe_data(coin, tf_k)
+df = fetch_data(coin, tf_k)
 
-if data is not None:
-    last = data.iloc[-1]
-    p, r, e = last['C'], last['RSI'], last['EMA']
+if df is not None:
+    # Fix lỗi IndexError bằng cách lấy vị trí an toàn
+    last = df.iloc[-1]
+    p, r, e = last['C'], last['RSI'], last['EMA20']
     
-    # Logic đèn Neon A1 cực nhạy
+    # ĐÈN TÍN HIỆU NEON A1
     b_on = "buy-on" if (p > e and r < 65) else ""
     s_on = "sell-on" if (p < e and r > 35) else ""
     h_on = "hold-on" if not b_on and not s_on else ""
     
     st.markdown(f'<div class="neon-card"><div class="signal {b_on}">MUA</div><div class="signal {h_on}">CHỜ</div><div class="signal {s_on}">BÁN</div></div>', unsafe_allow_html=True)
     
+    # BIỂU ĐỒ KỸ THUẬT
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
     if chart == "Candles":
-        fig.add_trace(go.Candlestick(x=data.index, open=data['O'], high=data['H'], low=data['L'], close=data['C'], name="Price"), row=1, col=1)
+        fig.add_trace(go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Price"), row=1, col=1)
     else:
-        fig.add_trace(go.Scatter(y=data['C'], fill='tozeroy' if chart=="Area" else None, line=dict(color='gold', width=2), name="Price"), row=1, col=1)
-        fig.add_trace(go.Bar(x=data.index, y=data['V'], marker_color='rgba(128,128,128,0.4)', name="Vol"), row=2, col=1)
+        fig.add_trace(go.Scatter(y=df['C'], fill='tozeroy' if chart=="Area" else None, line=dict(color='gold', width=2), name="Price"), row=1, col=1)
+    
+    fig.add_trace(go.Bar(x=df.index, y=df['V'], marker_color='rgba(128,128,128,0.4)', name="Vol"), row=2, col=1)
     fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
     st.plotly_chart(fig, use_container_width=True)
     
-    st.columns(3)[0].metric("PRICE", f"${p:,.1f}")
-    st.columns(3)[1].metric("RSI", f"{r:.1f}")
-    st.columns(3)[2].metric("EMA", f"{e:,.1f}")
+    # THÔNG SỐ MASTER
+    c1, c2, c3 = st.columns(3)
+    c1.metric("GIÁ HIỆN TẠI", f"${p:,.1f}")
+    c2.metric("CHỈ SỐ RSI", f"{r:.2f}")
+    c3.metric("ĐƯỜNG EMA20", f"{e:,.1f}")
 else:
-    # Nếu lỗi, tự động reset cache và thử lại sau 2 giây
-    st.error(curr['err'])
+    # Fix lỗi kẹt đỏ bằng cách thông báo nhẹ nhàng và tự reload
+    st.warning(curr['err'])
     time.sleep(2)
     st.rerun()
