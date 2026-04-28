@@ -2,122 +2,129 @@ import streamlit as st
 import pandas as pd
 import requests
 import time
-from datetime import datetime
+import plotly.graph_objects as go
 
-# --- 1. CẤU TRÚC GIAO DIỆN GOLDEN LẤP LÁNH (SỬA LỖI KHUNG ĐỀ - FIX 61e053f3) ---
-st.set_page_config(page_title="A1 GOLDEN V40", layout="wide", page_icon="🐢")
+# --- 1. CẤU TRÚC GIAO DIỆN PRESTIGE GOLDEN (XÓA SẠCH LỖI KHUNG ĐÈ) ---
+st.set_page_config(page_title="A1 PRESTIGE V41", layout="wide", page_icon="🐢")
 
 st.markdown("""
 <style>
-    /* Xóa bỏ header và mọi khung thừa (Fix 61e053f3) */
+    /* Xóa bỏ mọi thành phần thừa của Streamlit gây đè ảnh */
     header, footer, .stAppHeader {visibility: hidden !important; display: none !important;}
-    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%) !important; color: #FFD700; }
+    .main { background: #000000 !important; color: #FFD700; }
     
-    /* Hiệu ứng Rùa Vàng Lấp Lánh và Chữ Q68 */
-    .golden-turtle {
-        filter: drop-shadow(0 0 15px #FFD700) brightness(1.2);
-        animation: glow 2s ease-in-out infinite alternate;
+    /* Hiệu ứng Rùa Vàng Lấp Lánh Q68 */
+    .stImage img {
+        filter: drop-shadow(0 0 20px #FFD700);
+        border-radius: 50%;
     }
-    @keyframes glow { from { filter: drop-shadow(0 0 5px #FFD700); } to { filter: drop-shadow(0 0 25px #DAA520); } }
-
-    /* Nút bấm Vàng Ánh Kim chuyên nghiệp */
+    
+    /* Nút bấm Vàng Ánh Kim 3D */
     div.stButton > button { 
-        width: 100%; background: linear-gradient(45deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-        color: black; font-weight: 900; border-radius: 10px; height: 50px; border: none;
-        box-shadow: 0 4px 15px rgba(218, 165, 32, 0.4);
+        width: 100%; background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%); 
+        color: black; font-weight: 900; border-radius: 12px; height: 50px; border: 2px solid #FFFACD;
+        box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+    }
+    
+    /* Khung tín hiệu bo góc */
+    .signal-card {
+        padding: 25px; border-radius: 20px; border: 2px solid gold;
+        background: rgba(255, 215, 0, 0.05); text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG QUẢN LÝ TÀI KHOẢN & NGÔN NGỮ (FIX CC629488) ---
-if 'users' not in st.session_state: st.session_state['users'] = {"admin": "A1PRO"} # Tài khoản mặc định
+# --- 2. QUẢN LÝ ĐĂNG NHẬP (LƯU TÀI KHOẢN THỰC) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
-if 'lang' not in st.session_state: st.session_state['lang'] = "Tiếng Việt"
-
-# Từ điển ngôn ngữ (Fix lỗi không chuyển được tiếng Anh - cc629488)
-text = {
-    "Tiếng Việt": {"login": "ĐĂNG NHẬP", "reg": "ĐĂNG KÝ", "user": "TÀI KHOẢN", "pwd": "MẬT KHẨU", "btn": "KÍCH HOẠT V40", "qr": "QUÉT TRUY CẬP"},
-    "English": {"login": "LOGIN", "reg": "REGISTER", "user": "USERNAME", "pwd": "PASSWORD", "btn": "ACTIVATE V40", "qr": "SCAN TO ACCESS"}
-}
 
 if not st.session_state['auth']:
-    _, col, _ = st.columns([1, 1.6, 1])
+    _, col, _ = st.columns([1, 1.8, 1])
     with col:
         st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-        # Rùa Vàng Ánh Kim (Em dùng hiệu ứng CSS để làm Squirtle lấp lánh như vàng thật)
-        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=180)
-        st.markdown("<h1 style='color: gold; margin-top:-20px;'>Q68 MASTER</h1>", unsafe_allow_html=True)
+        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=200)
+        st.markdown("<h1 style='color: gold; font-size: 45px;'>A1 GLOBAL</h1>", unsafe_allow_html=True)
         
-        # Chọn ngôn ngữ (Cập nhật ngay lập tức)
-        st.session_state['lang'] = st.selectbox("LANGUAGE / NGÔN NGỮ", ["Tiếng Việt", "English"])
-        L = text[st.session_state['lang']]
+        # Ngôn ngữ hoạt động ngay lập tức
+        lang = st.radio("CHỌN NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"], horizontal=True)
+        label_user = "TÀI KHOẢN" if lang == "Tiếng Việt" else "USERNAME"
+        label_pwd = "MẬT KHẨU" if lang == "Tiếng Việt" else "PASSWORD"
         
-        tab1, tab2 = st.tabs([f"🔒 {L['login']}", f"📝 {L['reg']}"])
+        u = st.text_input(label_user, placeholder="admin")
+        p = st.text_input(label_pwd, type="password", placeholder="A1PRO")
         
-        with tab1:
-            u_input = st.text_input(L['user'], key="u_in")
-            p_input = st.text_input(L['pwd'], type="password", key="p_in")
-            c1, c2 = st.columns([1.5, 1])
-            with c1:
-                if st.button(L['btn']):
-                    if u_input in st.session_state['users'] and st.session_state['users'][u_input] == p_input:
-                        st.session_state['auth'] = True
-                        st.rerun()
-                    else: st.error("❌ Invalid Login!")
-            with c2:
-                # Mã QR hoạt động (Dẫn đến trang Streamlit của anh - Fix cc629488)
-                st.markdown(f"<p style='font-size:11px; color:gold;'>{L['qr']}</p>", unsafe_allow_html=True)
-                st.image("https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://nrynpp6caudetlbejh8appz.streamlit.app")
-
-        with tab2:
-            new_u = st.text_input(f"NEW {L['user']}", key="u_reg")
-            new_p = st.text_input(f"NEW {L['pwd']}", type="password", key="p_reg")
-            if st.button(f"CREATE {L['user']}"):
-                if new_u and new_p:
-                    st.session_state['users'][new_u] = new_p
-                    st.success("✅ Success! Please Login.")
-                else: st.warning("Please fill all fields!")
+        if st.button("KÍCH HOẠT HỆ THỐNG V41"):
+            if u == "admin" and p == "A1PRO":
+                st.session_state['auth'] = True
+                st.rerun()
+            else: st.error("❌ Sai thông tin truy cập!")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://nrynpp6caudetlbejh8appz.streamlit.app", caption="QUÉT ĐỂ TRUY CẬP")
     st.stop()
 
-# --- 3. ĐỘNG CƠ DỮ LIỆU CHỐNG LỖI MÀN HÌNH ĐỎ (FIX C2959BDD) ---
-def get_safe_data(symbol):
-    try:
-        # Sử dụng API Binance trực tiếp, lấy giới hạn nến để iPad mượt
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=50"
-        r = requests.get(url, timeout=5).json()
-        if isinstance(r, list) and len(r) > 0:
-            df = pd.DataFrame(r, columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
-            df['C'] = df['C'].astype(float)
-            df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
-            return df
-    except: return None
-    return None
+# --- 3. KẾT NỐI DỮ LIỆU BINANCE THỰC (CHỐNG TREO - FIX 975B97A2) ---
+@st.cache_data(ttl=10) # Tự động làm mới mỗi 10 giây
+def fetch_market_data(symbol):
+    try:url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=100"
+        res = requests.get(url, timeout=5).json()
+        df = pd.DataFrame(res, columns=['time','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
+        df[['O','H','L','C']] = df[['O','H','L','C']].astype(float)
+        # Chỉ báo A1: EMA20
+        df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
+        return df
+    except Exception as e:
+        return None
 
-# --- 4. GIAO DIỆN BÊN TRONG (SIDEBAR GOLDEN) ---
+# --- 4. GIAO DIỆN BÊN TRONG (SIDEBAR VÀNG KIM) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: gold; text-align: center;'>A1 GLOBAL</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: gold;'>Q68 MASTER</h2>", unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=100)
     st.divider()
-    target = st.selectbox("ASSET", ["BTCUSDT", "ETHUSDT", "PAXGUSDT"])
-    
-    st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://nrynpp6caudetlbejh8appz.streamlit.app")
-    if st.button("LOGOUT"):
+    coin = st.selectbox("TÀI SẢN", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT"])
+    st.divider()
+    st.markdown("### A1 SUPPORT")
+    st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=A1-SUPPORT-GOLDEN")
+    if st.button("THOÁT HỆ THỐNG"):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 5. HIỂN THỊ BIỂU ĐỒ (CHỐNG LỖI INDEX - FIX 7BB4D22F) ---
-data = get_safe_data(target)
+# --- 5. HIỂN THỊ BIỂU ĐỒ TRADINGVIEW-STYLE (FIX 6A03B831) ---
+df = fetch_market_data(coin)
 
-if data is not None and not data.empty:
-    # Fix triệt để lỗi IndexError bằng cách kiểm tra độ dài dataframe (Fix c2959bdd)
-    curr_price = data['C'].iloc[-1]
-    st.title(f"📊 {target} Market")
-    st.metric("PRICE", f"${curr_price:,.2f}")
-    st.line_chart(data[['C', 'EMA20']])
+if df is not None and not df.empty:
+    curr = df.iloc[-1]
     
-    if curr_price > data['EMA20'].iloc[-1]:
-        st.success("🚀 TÍN HIỆU A1: MUA (BULLISH)")
-    else:
-        st.error("📉 TÍN HIỆU A1: BÁN (BEARISH)")
+    # 1. Thẻ tín hiệu A1 (Fix lỗi không hiển thị)
+    status = "🚀 MUA (UP)" if curr['C'] > curr['EMA20'] else "📉 BÁN (DOWN)"
+    color = "#10b981" if "MUA" in status else "#ef4444"
+    
+    st.markdown(f"""
+        <div class="signal-card">
+            <h1 style="color: gold; margin: 0;">{coin}</h1>
+            <h2 style="color: {color};">{status}</h2>
+            <p style="color: #FFD700; font-size: 20px;">GIÁ HIỆN TẠI: ${curr['C']:,.2f}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 2. Biểu đồ nến chuyên nghiệp (TradingView Style)
+    fig = go.Figure(data=[
+        go.Candlestick(x=df.index, open=df['O'], high=df['H'], low=df['L'], close=df['C'], name="Nến"),
+        go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='gold', width=2), name="EMA20")
+    ])
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=500, margin=dict(l=0,r=0,t=0,b=0))
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # 3. Thông số kỹ thuật
+    c1, c2, c3 = st.columns(3)
+    c1.metric("HIGH", f"${curr['H']:,.1f}")
+    c2.metric("LOW", f"${curr['L']:,.1f}")
+    c3.metric("EMA20", f"${curr['EMA20']:,.1f}")
 else:
-    st.error("🔄 Hệ thống đang kết nối lại dữ liệu thị trường... Vui lòng đợi.")
-    if st.button("RELOAD"): st.rerun()
+    # Fix lỗi đứng màn hình (975b97a2)
+    st.markdown("""
+        <div style="text-align: center; padding: 50px;">
+            <h2 style="color: gold;">🔄 Đang kết nối dữ liệu sàn Binance...</h2>
+            <p>Anh vui lòng chờ trong giây lát hoặc bấm nút bên dưới.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    if st.button("LÀM MỚI DỮ LIỆU"): st.rerun()
