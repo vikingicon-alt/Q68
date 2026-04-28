@@ -4,119 +4,123 @@ import requests
 import time
 from datetime import datetime
 
-# --- 1. CẤU TRÚC GIAO DIỆN BỀN VỮNG (ANTI-CRASH) ---
-st.set_page_config(page_title="A1 MASTER V36.0", layout="wide", page_icon="🐢")
+# --- 1. CẤU TRÚC GIAO DIỆN SIÊU CẤP (FIX 6a03b831, 7bb4d22f) ---
+st.set_page_config(page_title="A1 SUPREME V37", layout="wide")
 
 st.markdown("""
 <style>
     header, footer, #MainMenu {visibility: hidden !important;}
-    .main { background-color: #0d1117 !important; }
-    [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 2px solid gold; min-width: 300px !important; }
-    div.stButton > button { width: 100%; background: gold; color: black; font-weight: bold; border-radius: 10px; height: 50px; border: none; }
-    .stMetric { background-color: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid gold; }
-    .signal-card { padding: 20px; border-radius: 15px; text-align: center; font-weight: 900; font-size: 24px; border: 2px solid gold; margin-bottom: 25px; }
+    .main { background-color: #0d1117 !important; color: white; }
+    [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 2px solid #FFD700; min-width: 320px !important; }
+    /* Nút bấm lớn cho iPad */
+    div.stButton > button { 
+        width: 100%; background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%); 
+        color: black; font-weight: 900; border-radius: 12px; height: 55px; border: none;
+    }
+    .stMetric { background-color: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #FFD700; }
+    .login-card { 
+        background: #161b22; padding: 30px; border-radius: 20px; 
+        border: 2px solid #FFD700; text-align: center; box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HỆ THỐNG XÁC THỰC AN TOÀN (FIX 46cce953, 64886ad4) ---
+# --- 2. MÀN HÌNH ĐĂNG NHẬP HOÀN CHỈNH (CÓ MÃ QR BÊN NGOÀI - FIX THEO Ý ANH) ---
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 
 if not st.session_state['auth']:
-    _, col, _ = st.columns([1, 1.5, 1])
+    _, col, _ = st.columns([1, 2, 1])
     with col:
-        st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=150)
-        st.markdown("<h2 style='color: gold;'>A1 GLOBAL SYSTEM</h2>", unsafe_allow_html=True)
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", width=180)
+        st.markdown("<h1 style='color: #FFD700;'>A1 GLOBAL SYSTEM</h1>", unsafe_allow_html=True)
         
-        # Dùng Selectbox để tránh bị "liệt" trên Safari iPad (Fix 64886ad4)
-        lang = st.selectbox("NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"])
-        label_pwd = "MẬT KHẨU (A1PRO)" if lang == "Tiếng Việt" else "PASSWORD (A1PRO)"
-        btn_txt = "KÍCH HOẠT V36.0" if lang == "Tiếng Việt" else "ACTIVATE V36.0"
-        
-        pwd = st.text_input(label_pwd, type="password")
-        if st.button(btn_txt):
+        # Bố cục 2 cột cho Mật khẩu và Mã QR hỗ trợ (Fix yêu cầu đưa QR ra ngoài)
+        c1, c2 = st.columns([1.5, 1])
+        with c1:
+            lang = st.selectbox("NGÔN NGỮ / LANGUAGE", ["Tiếng Việt", "English"])
+            pwd = st.text_input("MẬT KHẨU (A1PRO)", type="password", help="Nhập mật khẩu để kích hoạt hệ thống")
+        with c2:
+            st.markdown("<p style='font-size: 12px; color: gold;'>QUÉT TRUY CẬP</p>", unsafe_allow_html=True)
+            st.image("https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=A1-PRO-ACCESS")
+            
+        if st.button("KÍCH HOẠT HỆ THỐNG V37.0"):
             if pwd == "A1PRO":
                 st.session_state['auth'] = True
                 st.rerun()
-            else: st.error("Sai mật khẩu!")
+            else:
+                st.error("❌ Mật khẩu chưa chính xác! Vui lòng kiểm tra lại.")
+        st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# --- 3. ĐỘNG CƠ DỮ LIỆU CÓ LỚP BẢO VỆ (FIX IndexError 7bb4d22f) ---
-def get_a1_master_data(symbol, interval):
+# --- 3. CƠ CHẾ LẤY DỮ LIỆU "FAST-TRACK" (KHÔNG TREO - FIX 21b0263b, dabfe0a4) ---
+@st.cache_data(ttl=10) # Tự động làm mới mỗi 10 giây
+def fetch_market_data(symbol, tf):
     try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=120"
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200: return None
-        
-        data = r.json()
-        if not data or len(data) < 50: return None # Bảo vệ nếu dữ liệu quá ít
-        
-        df = pd.DataFrame(data, columns=['time','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
-        df['C'] = df['C'].astype(float)
-        
-        # Chỉ báo A1 (EMA20 & RSI)
-        df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
-        delta = df['C'].diff()
-        u, d = (delta.where(delta > 0, 0)).rolling(14).mean(), (-delta.where(delta < 0, 0)).rolling(14).mean()
-        df['RSI'] = 100 - (100 / (1 + (u / (d + 1e-10))))
-        return df
-    except Exception:
-        return None
+        # Sử dụng API tối giản để iPad không bị quá tải
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={tf}&limit=100"
+        r = requests.get(url, timeout=5)
+        if r.status_code == 200:
+            df = pd.DataFrame(r.json(), columns=['T','O','H','L','C','V','CT','QV','N','TB','TQ','I'])
+            df['C'] = df['C'].astype(float)
+            # Chỉ báo A1 Master
+            df['EMA20'] = df['C'].ewm(span=20, adjust=False).mean()
+            delta = df['C'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            df['RSI'] = 100 - (100 / (1 + (gain / (loss + 1e-10))))
+            return df
+    except: return None
+    return None
 
-# --- 4. THANH ĐIỀU KHIỂN & MÃ QR (FIX 6a03b831, 21b0263b) ---
+# --- 4. GIAO DIỆN QUẢN LÝ (SIDEBAR) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: gold; text-align: center;'>Q68 MASTER</h2>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; color: gray;'>Cập nhật: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #FFD700; text-align: center;'>Q68 MASTER</h2>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center;'>{datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
     st.divider()
     
-    coin = st.selectbox("TÀI SẢN", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT"])
-    tf = st.selectbox("KHUNG GIỜ", ["15m", "1h", "4h", "1d", "1w"], index=1)
-    view = st.radio("HIỂN THỊ", ["Nến & EMA20", "Đường Kẻ", "Vùng"])
+    coin = st.selectbox("CHỌN TÀI SẢN", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "PAXGUSDT", "BNBUSDT"])
+    tf_choice = st.selectbox("KHUNG THỜI GIAN", ["15m", "1h", "4h", "1d"], index=1)
+    view_mode = st.radio("KIỂU HIỂN THỊ", ["Nến & EMA20", "Đường Kẻ (Line)", "Vùng (Area)"])
     
     st.divider()
-    # Mã QR - Mẫu Gà quản lý hệ thống (Fix 6a03b831)
-    st.write("A1 GLOBAL QR")
-    st.image("https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=A1-GLOBAL-V36", caption="QUÉT ĐỂ TRUY CẬP")
+    st.write("DỰ ÁN A1 - QR HỖ TRỢ")
+    st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=A1-SUPPORT-V37", caption="QR HỆ THỐNG")
     
-    st.divider()
     if st.button("THOÁT HỆ THỐNG"):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 5. HIỂN THỊ KẾT QUẢ VÀ XỬ LÝ LỖI TRIỆT ĐỂ ---
-data_df = get_a1_master_data(coin, tf)
+# --- 5. HIỂN THỊ CHÍNH (FIX LỖI Index 7bb4d22f & TREO dabfe0a4) ---
+df_core = fetch_market_data(coin, tf_choice)
 
-if data_df is not None and not data_df.empty:
-    # Lấy nến cuối cùng an toàn (Fix lỗi 7bb4d22f)
-    curr = data_df.iloc[-1]
-    p, r, e = curr['C'], curr['RSI'], curr['EMA20']
+if df_core is not None and not df_core.empty:
+    last = df_core.iloc[-1]
+    curr_p, curr_r, curr_e = last['C'], last['RSI'], last['EMA20']
     
-    # Tín hiệu A1
-    if p > e and r < 70:
-        st.markdown('<div class="signal-card" style="color:#10b981; background:#064e3b;">TÍN HIỆU: MUA (A1 UP)</div>', unsafe_allow_html=True)
-    elif p < e and r > 30:
-        st.markdown('<div class="signal-card" style="color:#ef4444; background:#450a0a;">TÍN HIỆU: BÁN (A1 DOWN)</div>', unsafe_allow_html=True)
+    # Tín hiệu đèn giao thông A1
+    if curr_p > curr_e and curr_r < 70:
+        st.success(f"🚀 TÍN HIỆU A1: MUA (Giá {curr_p:,.1f} nằm trên EMA20)")
+    elif curr_p < curr_e and curr_r > 30:
+        st.error(f"📉 TÍN HIỆU A1: BÁN (Giá {curr_p:,.1f} nằm dưới EMA20)")
     else:
-        st.markdown('<div class="signal-card" style="color:#f59e0b; background:#451a03;">TÍN HIỆU: CHỜ (A1 WAIT)</div>', unsafe_allow_html=True)
+        st.warning("⚖️ TÍN HIỆU A1: CHỜ (Thị trường đang tích lũy)")
 
-    # Biểu đồ (Fix b6c600f2)
-    st.write(f"### BIỂU ĐỒ {coin} - {tf}")
-    if view == "Nến & EMA20":
-        st.line_chart(data_df[['C', 'EMA20']])
-    elif view == "Đường Kẻ":
-        st.line_chart(data_df['C'])
+    # Biểu đồ chính
+    st.subheader(f"Biểu đồ phân tích {coin}")
+    if view_mode == "Nến & EMA20":
+        st.line_chart(df_core[['C', 'EMA20']])
+    elif view_mode == "Đường Kẻ (Line)":
+        st.line_chart(df_core['C'])
     else:
-        st.area_chart(data_df['C'])
-        
-    st.write("### CHỈ SỐ RSI (14)")
-    st.line_chart(data_df['RSI'])
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("GIÁ", f"${p:,.1f}")
-    c2.metric("RSI", f"{r:.2f}")
-    c3.metric("EMA20", f"{e:,.1f}")
+        st.area_chart(df_core['C'])
+
+    # Thông số Metric
+    col1, col2 = st.columns(2)
+    col1.metric("GIÁ HIỆN TẠI", f"${curr_p:,.2f}")
+    col2.metric("CHỈ SỐ RSI", f"{curr_r:.2f}")
 else:
-    # Thông báo thay thế thay vì hiện bảng lỗi (Fix 7bb4d22f, 21b0263b)
-    st.warning("⚠️ Hệ thống đang kết nối lại với dữ liệu thị trường... Vui lòng chờ trong giây lát!")
-    time.sleep(3)
-    st.rerun()
+    # Fix lỗi treo dabfe0a4: Thêm nút tải lại thủ công nếu API bị nghẽn
+    st.info("🔄 Đang đợi dữ liệu từ sàn Binance... Nếu quá 10 giây không thấy biểu đồ, anh hãy bấm nút bên dưới.")
+    if st.button("TẢI LẠI DỮ LIỆU NGAY"):
+        st.rerun()
