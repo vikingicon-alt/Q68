@@ -1,75 +1,148 @@
 import streamlit as st
-import yfinance as yf
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pandas as pd
+import urllib.request
+import json
 
-# 1. CẤU HÌNH DỰ ÁN A1 - VƯƠN TẦM THẾ GIỚI
-st.set_page_config(page_title="DỰ ÁN A1: GLOBAL TRADING AI", layout="wide")
-st.title("🚀 DỰ ÁN A1: HỆ THỐNG DỰ ĐOÁN TÀI CHÍNH TOÀN CẦU")
+# --- 1. CẤU HÌNH GIAO DIỆN PREMIUM DÀNH CHO IPAD PRO ---
+st.set_page_config(page_title="Q68 GLOBAL SYSTEM", layout="wide", page_icon="🐢")
 
-# 2. MENU CÀI ĐẶT CHI TIẾT
+st.markdown("""
+    <style>
+    .main { background-color: #080a0c; }
+    /* Định dạng nút bấm Tín hiệu */
+    .stButton>button { 
+        width: 100%; border-radius: 12px; height: 4.5em; 
+        font-weight: 800; font-size: 20px; border: none; 
+        color: white; opacity: 0.15; transition: 0.5s; 
+    }
+    
+    @keyframes neon-glow {
+        0% { box-shadow: 0 0 5px; transform: scale(1); }
+        50% { box-shadow: 0 0 25px; transform: scale(1.02); }
+        100% { box-shadow: 0 0 5px; transform: scale(1); }
+    }
+    
+    /* Hiệu ứng màu khi có tín hiệu */
+    .active-buy { background-color: #00ff88 !important; color: black !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
+    .active-sell { background-color: #ff4b4b !important; color: white !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
+    .active-hold { background-color: #ffaa00 !important; color: black !important; animation: neon-glow 1.5s infinite !important; opacity: 1 !important; }
+    
+    /* Chân trang Q68 viết hoa đẳng cấp */
+    .q68-footer { 
+        position: fixed; bottom: 10px; left: 50%; 
+        transform: translateX(-50%); color: #ffffff; 
+        font-weight: 900; font-size: 28px; opacity: 0.3; letter-spacing: 12px; 
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 2. BỘ ĐIỀU KHIỂN CHIẾN THUẬT (SIDEBAR) ---
 with st.sidebar:
-    st.header("CÀI ĐẶT CHIẾN THUẬT")
-    target_label = st.selectbox("1. Chọn tài sản:", ["BITCOIN (BTC)", "ETHEREUM (ETH)", "VÀNG (GOLD)", "VN-INDEX"])
-    time_frame = st.selectbox("2. Khung thời gian soi kèo:", ["30 Phút", "1 Giờ", "4 Giờ", "1 Ngày", "1 Tuần"])
-    st.info("Dự án A1 đang kết nối dữ liệu từ: DXY, Dow Jones, Yahoo Finance...")
-
-# Cấu hình bản đồ dữ liệu
-tf_map = {"30 Phút": ("30m", "1mo"), "1 Giờ": ("1h", "2mo"), "4 Giờ": ("4h", "3mo"), "1 Ngày": ("1d", "1y"), "1 Tuần": ("1wk", "2y")}
-interval, period = tf_map[time_frame]
-ticker_map = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "VÀNG (GOLD)": "GC=F", "VN-INDEX": "^VNINDEX"}
-
-# 3. TẢI DỮ LIỆU CHÍNH VÀ DỮ LIỆU THẾ GIỚI (DXY)
-data = yf.download(ticker_map[target_label], period=period, interval=interval)
-dxy_data = yf.download("DX-Y.NYB", period=period, interval=interval) # Chỉ số DXY
-
-if not data.empty:
-    df = data.copy()
-    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+    # Chữ Q68 viết hoa ngay đầu ứng dụng
+    st.markdown("# 🐢 Q68") 
+    lang = st.radio("🌐 LANGUAGE / NGÔN NGỮ:", ["Tiếng Việt", "English"], horizontal=True)
     
-    # Tính toán chỉ báo kỹ thuật (RSI, MA)
-    delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    df['RSI'] = 100 - (100 / (1 + (gain / loss)))
-    df['MA20'] = df['Close'].rolling(20).mean()
+    # Từ điển đa ngôn ngữ cho dự án A1
+    t = {
+        "asset": "TÀI SẢN CHIẾN LƯỢC:" if lang == "Tiếng Việt" else "STRATEGIC ASSET:",
+        "tf": "KHUNG THỜI GIAN (TF):" if lang == "Tiếng Việt" else "TIMEFRAME (TF):",
+        "scan": "HỆ THỐNG QUẢN TRỊ A1:" if lang == "Tiếng Việt" else "A1 OPERATING SYSTEM:",
+        "title": "DỰ BÁO XU HƯỚNG" if lang == "Tiếng Việt" else "TREND PREDICTION",
+        "price": "GIÁ USD THỜI GIAN THỰC" if lang == "Tiếng Việt" else "REAL-TIME USD PRICE",
+        "signal": "🐢 TÍN HIỆU CHIẾN THUẬT A1" if lang == "Tiếng Việt" else "🐢 A1 STRATEGIC SIGNALS",
+        "buy": "🔥 MUA NGAY", "sell": "❄️ BÁN NGAY", "hold": "⏳ CHỜ ĐỢI",
+        "wait": "🔄 ĐANG KẾT NỐI DỮ LIỆU..." if lang == "Tiếng Việt" else "🔄 CONNECTING DATA..."
+    }
 
-    rsi_now = float(df['RSI'].iloc[-1])
-    price_now = float(df['Close'].iloc[-1])
-
-    # 4. HỆ THỐNG CẢNH BÁO CHUYÊN NGHIỆP (BAY/SALE)
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        if rsi_now < 30:
-            st.success(f"🔥 TÍN HIỆU CHIẾN THUẬT: BAY (BUY) MẠNH - KHUNG {time_frame.upper()}")
-        elif rsi_now > 70:
-            st.error(f"⚠️ CẢNH BÁO CHIẾN THUẬT: SALE (SELL) GẤP - KHUNG {time_frame.upper()}")
-        else:
-            st.warning(f"💎 TRẠNG THÁI: TIẾP TỤC HÔ (HOLD) & THEO DÕI - KHUNG {time_frame}")
+    asset_choice = st.selectbox(t["asset"], ["BITCOIN (BTC)", "ETHEREUM (ETH)", "PAXG (VÀNG)"])
+    tf_choice = st.select_slider(t["tf"], options=["5m", "15m", "30m", "1h", "4h", "1D", "1W", "1M"], value="1h")
     
-    with col2:
-        if not dxy_data.empty:
-            dxy_price = dxy_data['Close'].iloc[-1]
-            st.metric("Chỉ số USD (DXY)", f"{float(dxy_price):.2f}")
+    st.divider()
+    st.write(f"📲 **{t['scan']}**")
+    # QR Code đại diện cho dự án A1
+    st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://A1-PROJECT", width=150)
 
-    # 5. BIỂU ĐỒ NẾN CHUYÊN NGHIỆP ĐA TẦNG
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_width=[0.3, 0.7])
+# --- 3. CÔNG CỤ XỬ LÝ DỮ LIỆU QUỐC TẾ ---
+@st.cache_data(ttl=15)
+def fetch_global_data(symbol, tf):
+    mapping = {"BITCOIN (BTC)": "BTC-USD", "ETHEREUM (ETH)": "ETH-USD", "PAXG (VÀNG)": "PAXG-USD"}
+    tf_map = {"5m":"5m", "15m":"15m", "30m":"30m", "1h":"1h", "4h":"1h", "1D":"1d", "1W":"1wk", "1M":"1mo"}
+    range_map = {"5m":"1d", "15m":"2d", "30m":"5d", "1h":"7d", "4h":"14d", "1D":"60d", "1W":"1y", "1M":"5y"}
     
-    # Tầng 1: Nến và MA20
-    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], line=dict(color='yellow', width=1.5), name='Đường MA20'), row=1, col=1)
+    ticker = mapping.get(symbol, "BTC-USD")
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval={tf_map[tf]}&range={range_map[tf]}"
     
-    # Tầng 2: RSI
-    fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='#e91e63', width=2), name='Chỉ báo RSI'), row=2, col=1)
-    fig.add_hline(y=70, line_dash="dot", line_color="red", row=2, col=1)
-    fig.add_hline(y=30, line_dash="dot", line_color="green", row=2, col=1)
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            res = json.loads(response.read())['chart']['result'][0]
+            df = pd.DataFrame({
+                'Date': pd.to_datetime(res['timestamp'], unit='s'),
+                'Open': res['indicators']['quote'][0]['open'],
+                'High': res['indicators']['quote'][0]['high'],
+                'Low': res['indicators']['quote'][0]['low'],
+                'Close': res['indicators']['quote'][0]['close'],
+                'Volume': res['indicators']['quote'][0]['volume']
+            }).dropna()
+            
+            # Tính toán chỉ báo EMA (Đường vàng) và RSI (Sức mạnh tương đối)
+            df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            df['RSI'] = 100 - (100 / (1 + (gain/loss)))
+            return df
+    except: return None
 
-    fig.update_layout(height=700, template='plotly_dark', xaxis_rangeslider_visible=False, 
-                      title=f"Phân tích kỹ thuật {target_label} - Dự án A1")
+# --- 4. TRUNG TÂM HIỂN THỊ DỮ LIỆU ---
+st.title(f"🐢 {asset_choice.split(' ')[0]} - {t['title']}")
+
+df = fetch_global_data(asset_choice, tf_choice)
+
+if df is not None:
+    current_p = df['Close'].iloc[-1]
+    st.metric(f"{t['price']} ({tf_choice})", f"${current_p:,.2f}")
+
+    # Biểu đồ kỹ thuật 3 tầng chuẩn thế giới
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.15, 0.25])
+    
+    # Tầng 1: Nến Nhật + Đường EMA màu vàng (EMA20)
+    fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], line=dict(color='#FFD700', width=1.8), name="EMA 20"), row=1, col=1)
+    
+    # Tầng 2: Khối lượng giao dịch (Volume)
+    v_colors = ['#ff4b4b' if df['Open'].iloc[i] > df['Close'].iloc[i] else '#00ff88' for i in range(len(df))]
+    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], marker_color=v_colors, name="Volume"), row=2, col=1)
+    
+    # Tầng 3: Chỉ báo RSI xanh dương
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['RSI'], fill='tozeroy', line=dict(color='#00d1ff', width=2), fillcolor='rgba(0, 209, 255, 0.1)', name="RSI"), row=3, col=1)
+    
+    fig.update_layout(height=650, template="plotly_dark", showlegend=False, xaxis_rangeslider_visible=False, margin=dict(t=5, b=5))
+    fig.update_yaxes(tickprefix="$", tickformat=",", row=1, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    # 6. THÔNG TIN PHỤ
-    st.write(f"**Giá hiện tại:** {price_now:,.2f} | **Chỉ số RSI:** {rsi_now:.2f}")
+    # --- 5. LOGIC PHÂN TÍCH CHIẾN THUẬT A1 ---
+    # Linh vật Con Rùa dẫn lối tín hiệu
+    st.markdown(f"### {t['signal']}")
+    rsi_now = df['RSI'].iloc[-1]
+    price_now = df['Close'].iloc[-1]
+    ema_now = df['EMA20'].iloc[-1]
+    
+    # Logic: Chỉ MUA khi giá nằm trên đường EMA và RSI thấp (Quá bán)
+    is_uptrend = price_now > ema_now
+    
+    b_class = "active-buy" if (rsi_now < 38 and is_uptrend) else ""
+    s_class = "active-sell" if (rsi_now > 62 or not is_uptrend) else ""
+    h_class = "active-hold" if (not b_class and not s_class) else ""
 
-st.caption("❤️ Sản phẩm thuộc Dự án A1 - Chúc anh yêu thành công rực rỡ trên thị trường thế giới!")
+    c1, c2, c3 = st.columns(3)
+    with c1: st.markdown(f'<button class="stButton {b_class}">{t["buy"]}</button>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<button class="stButton {h_class}">{t["hold"]}</button>', unsafe_allow_html=True)
+    with c3: st.markdown(f'<button class="stButton {s_class}">{t["sell"]}</button>', unsafe_allow_html=True)
+else:
+    st.warning(t["wait"])
+
+# --- 6. CHÂN TRANG ĐỊNH DANH Q68 ---
+st.markdown('<div class="q68-footer">Q68</div>', unsafe_allow_html=True)
