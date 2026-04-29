@@ -1,123 +1,105 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import yfinance as yf
-from datetime import datetime
+from streamlit_lightweight_charts import renderLightweightCharts
 
-# --- CONFIG CHUẨN SÀN BINANCE ---
-st.set_page_config(page_title="Q68 Premier | Binance Style", layout="wide", page_icon="📈")
+# --- CẤU HÌNH GIAO DIỆN SIÊU CẤP (FULL DARK MODE) ---
+st.set_page_config(page_title="Binance Pro Terminal", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
-    .stApp { background-color: #0b0e11; color: #eaecef; font-family: 'Roboto Mono', monospace; }
-    
-    /* Header Giá & Tín hiệu */
-    .price-card { background: #1e2329; padding: 20px; border-radius: 8px; border-left: 5px solid #f0b90b; }
-    .live-price { font-size: 52px; font-weight: 700; color: #02c076; margin: 0; line-height: 1; }
-    .price-red { color: #cf304a !important; }
-    
-    /* Nút Lệnh Binance Style */
-    .order-btn {
-        height: 60px; width: 100%; border-radius: 4px; border: none;
-        font-size: 18px; font-weight: 700; color: #848e9c; background: #2b3139;
-        display: flex; align-items: center; justify-content: center; transition: 0.3s;
+    .stApp { background-color: #0b0e11; color: #eaecef; }
+    /* Nút bấm thiết kế lại theo Binance App */
+    .btn-container { display: flex; gap: 10px; margin-bottom: 20px; }
+    .nav-btn {
+        flex: 1; height: 50px; border-radius: 4px; display: flex; 
+        align-items: center; justify-content: center; font-weight: 700;
+        background: #2b3139; color: #848e9c; border: none; font-size: 16px;
     }
-    .btn-buy.active { background: #02c076 !important; color: white !important; box-shadow: 0 0 15px #02c07688; }
-    .btn-sell.active { background: #cf304a !important; color: white !important; box-shadow: 0 0 15px #cf304a88; }
-    .btn-hold.active { background: #f0b90b !important; color: black !important; }
+    .buy-active { background: #02c076 !important; color: white !important; box-shadow: 0 4px 15px rgba(2, 192, 118, 0.3); }
+    .sell-active { background: #cf304a !important; color: white !important; box-shadow: 0 4px 15px rgba(207, 48, 74, 0.3); }
+    .hold-active { background: #f0b90b !important; color: black !important; }
+    
+    /* Header Giá mượt mà */
+    .header-box { border-bottom: 1px solid #2b3139; padding-bottom: 15px; margin-bottom: 20px; }
+    .price-text { font-size: 42px; font-weight: 700; color: #02c076; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR CẢI TIẾN ---
-with st.sidebar:
-    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png", width=50)
-    st.title("Q68 PREMIER")
-    
-    asset_list = {"BTC": "BTC-USD", "ETH": "ETH-USD", "BNB": "BNB-USD", "PAXG": "PAXG-USD", "XRP": "XRP-USD"}
-    symbol = st.selectbox("MARKET", list(asset_list.keys()))
-    tf = st.select_slider("INTERVAL", options=["5m", "15m", "1h", "4h", "1d"], value="1h")
-    
-    st.divider()
-    st.markdown("### INDICATORS")
-    show_ema = st.toggle("EMA (7, 25, 99)", value=True)
-    show_vol = st.toggle("VOLUME", value=True)
-    show_macd = st.toggle("MACD / RSI", value=True)
-
-# --- PHÂN TÍCH NÃO BỘ AI ---
-@st.cache_data(ttl=10)
-def fetch_binance_data(sym, interval):
-    data = yf.download(asset_list[sym], period="5d", interval=interval, progress=False)
-    if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
-    df = data.reset_index()
-    # Tính toán EMA đa tầng
-    df['EMA7'] = df['Close'].ewm(span=7).mean()
-    df['EMA25'] = df['Close'].ewm(span=25).mean()
-    df['EMA99'] = df['Close'].ewm(span=99).mean()
-    # MACD & RSI
-    exp1 = df['Close'].ewm(span=12).mean(); exp2 = df['Close'].ewm(span=26).mean()
-    df['MACD'] = exp1 - exp2; df['Sig'] = df['MACD'].ewm(span=9).mean()
-    delta = df['Close'].diff(); g = delta.where(delta > 0, 0).rolling(14).mean(); l = -delta.where(delta < 0, 0).rolling(14).mean()
-    df['RSI'] = 100 - (100 / (1 + (g/l)))
+# --- QUẢN LÝ DỮ LIỆU ---
+@st.cache_data(ttl=15)
+def get_pro_data(symbol, tf):
+    assets = {"BTC": "BTC-USD", "ETH": "ETH-USD", "BNB": "BNB-USD", "PAXG": "PAXG-USD"}
+    df = yf.download(assets[symbol], period="5d", interval=tf, progress=False)
+    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+    df = df.reset_index()
+    df.columns = ['time', 'open', 'high', 'low', 'close', 'adj_close', 'volume']
+    df['time'] = df['time'].astype(str)
+    # Indicators cho AI
+    df['ema25'] = df['close'].ewm(span=25).mean()
     return df
 
-df = fetch_binance_data(symbol, tf)
+# Sidebar gọn gàng
+with st.sidebar:
+    st.markdown("### 🛠 CONTROL PANEL")
+    sym = st.selectbox("Market", ["BTC", "ETH", "BNB", "PAXG"])
+    tf_choice = st.selectbox("Interval", ["15m", "1h", "4h", "1d"], index=1)
+
+df = get_pro_data(sym, tf_choice)
 last = df.iloc[-1]
-prev = df.iloc[-2]
 
-# --- LOGIC QUYẾT ĐỊNH (THE BRAIN) ---
+# --- AI BRAIN: PROJECT A1 DECISION ---
 signal = "HOLD"
-if last['Close'] > last['EMA25'] and last['MACD'] > last['Sig']: signal = "BUY"
-elif last['Close'] < last['EMA25'] or last['RSI'] > 75: signal = "SELL"
+if last['close'] > last['ema25']: signal = "BUY"
+elif last['close'] < last['ema25']: signal = "SELL"
 
-# --- HIỂN THỊ HEADER GIÁ & NÚT LỆNH ---
-c_price, c_buy, c_hold, c_sell = st.columns([2, 1, 1, 1])
+# --- UI HEADER & BUTTONS ---
+st.markdown(f"""
+<div class="header-box">
+    <div style="color: #848e9c; font-size: 14px;">{sym} / USDT • {tf_choice}</div>
+    <div class="price-text">${last['close']:,.2f}</div>
+</div>
+""", unsafe_allow_html=True)
 
-with c_price:
-    color_class = "" if last['Close'] >= prev['Close'] else "price-red"
-    st.markdown(f"""
-        <div class="price-card">
-            <p style="color:#848e9c; margin:0; font-size:14px;">{symbol} / USDT</p>
-            <p class="live-price {color_class}">${last['Close']:,.2f}</p>
-        </div>
-    """, unsafe_allow_html=True)
+# Hiển thị nút bấm (Không bao giờ liệt)
+c1, c2, c3 = st.columns(3)
+with c1:
+    style = "buy-active" if signal == "BUY" else ""
+    st.markdown(f'<div class="nav-btn {style}">BUY</div>', unsafe_allow_html=True)
+with c2:
+    style = "hold-active" if signal == "HOLD" else ""
+    st.markdown(f'<div class="nav-btn {style}">HOLD</div>', unsafe_allow_html=True)
+with c3:
+    style = "sell-active" if signal == "SELL" else ""
+    st.markdown(f'<div class="nav-btn {style}">SELL</div>', unsafe_allow_html=True)
 
-with c_buy:
-    active = "active" if signal == "BUY" else ""
-    st.markdown(f'<div class="order-btn btn-buy {active}">BUY</div>', unsafe_allow_html=True)
-with c_hold:
-    active = "active" if signal == "HOLD" else ""
-    st.markdown(f'<div class="order-btn btn-hold {active}">HOLD</div>', unsafe_allow_html=True)
-with c_sell:
-    active = "active" if signal == "SELL" else ""
-    st.markdown(f'<div class="order-btn btn-sell {active}">SELL</div>', unsafe_allow_html=True)
+# --- BIỂU ĐỒ LIGHTWEIGHT (GIỐNG BINANCE 100%) ---
+chart_data = df[['time', 'open', 'high', 'low', 'close']].to_dict('records')
+volume_data = df[['time', 'volume', 'close', 'open']].copy()
+volume_data['color'] = volume_data.apply(lambda x: '#02c076' if x['close'] >= x['open'] else '#cf304a', axis=1)
+volume_data = volume_data[['time', 'volume', 'color']].rename(columns={'volume': 'value'}).to_dict('records')
 
-# --- BIỂU ĐỒ TRADINGVIEW STYLE ---
-fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02, 
-                    row_heights=[0.6, 0.15, 0.25] if show_macd else [0.8, 0.2, 0])
+chart_options = {
+    "layout": {"background_color": "#0b0e11", "text_color": "#848e9c"},
+    "grid": {"vertLines": {"color": "#1e2329"}, "horzLines": {"color": "#1e2329"}},
+    "rightPriceScale": {"borderColor": "#2b3139"},
+    "timeScale": {"borderColor": "#2b3139"},
+}
 
-# 1. Main Chart (Candlestick)
-fig.add_trace(go.Candlestick(x=df.iloc[:,0], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
-                             increasing_line_color='#02c076', decreasing_line_color='#cf304a'), row=1, col=1)
-if show_ema:
-    fig.add_trace(go.Scatter(x=df.iloc[:,0], y=df['EMA7'], line=dict(color='#f0b90b', width=1)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.iloc[:,0], y=df['EMA25'], line=dict(color='#e841de', width=1)), row=1, col=1)
+# Render biểu đồ chính
+renderLightweightCharts([
+    {
+        "type": "Candlestick",
+        "data": chart_data,
+        "options": {"upColor": "#02c076", "downColor": "#cf304a", "borderVisible": False, "wickUpColor": "#02c076", "wickDownColor": "#cf304a"}
+    },
+    {
+        "type": "Histogram",
+        "data": volume_data,
+        "options": {"color": "#26a69a", "priceFormat": {"type": "volume"}, "priceScaleId": ""},
+        "priceScale": {"scaleMargins": {"top": 0.8, "bottom": 0}}
+    }
+], chart_options)
 
-# 2. Volume Chart
-if show_vol:
-    v_colors = ['#02c076' if df['Open'].iloc[i] < df['Close'].iloc[i] else '#cf304a' for i in range(len(df))]
-    fig.add_trace(go.Bar(x=df.iloc[:,0], y=df['Volume'], marker_color=v_colors, opacity=0.5), row=2, col=1)
-
-# 3. MACD & RSI
-if show_macd:
-    fig.add_trace(go.Scatter(x=df.iloc[:,0], y=df['RSI'], line=dict(color='#ffffff', width=1.5)), row=3, col=1)
-    fig.add_trace(go.Bar(x=df.iloc[:,0], y=df['MACD']-df['Sig'], marker_color='#474d57'), row=3, col=1)
-
-fig.update_layout(height=750, template="plotly_dark", xaxis_rangeslider_visible=False,
-                  margin=dict(l=10, r=10, t=10, b=10), showlegend=False,
-                  paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-fig.update_yaxes(side="right", gridcolor="#1e2329")
-fig.update_xaxes(gridcolor="#1e2329")
-
-st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+st.markdown("---")
+st.caption("Project A1 AI Core • Real-time Syncing")
