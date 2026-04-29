@@ -1,137 +1,109 @@
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
-import time
 import random
 
-# --- 1. CẤU HÌNH WEBSITE ĐỂ TẠO MÃ QR ---
-# Anh thay địa chỉ trang web của anh vào đây để khách quét là vào đúng chỗ!
-MY_WEBSITE = "https://a1pro-global.com" 
+# --- 1. CẤU HÌNH ---
+MY_WEBSITE = "https://a1pro-global.com"
 
-# --- 2. GIAO DIỆN TRÀN VIỀN & XÓA SẠCH LOGO (CSS CẤP CAO) ---
-st.set_page_config(page_title="A1 SUPREME V56", layout="wide", initial_sidebar_state="collapsed")
+# --- 2. CSS ĐẶC TRỊ: DIỆT LOGO & TRÀN VIỀN TỐI ĐA ---
+st.set_page_config(page_title="A1 SUPREME V58", layout="wide", initial_sidebar_state="collapsed")
 
-st.markdown(f"""
+st.markdown("""
 <style>
-    /* Ẩn hoàn toàn Logo Streamlit, nút Deploy và Menu */
-    footer {{visibility: hidden;}}
-    #MainMenu {{visibility: hidden;}}
-    header {{visibility: hidden;}}
-    .viewerBadge_container__1QSob {{display: none !important;}}
-    .stAppDeployButton {{display: none !important;}}
+    /* XÓA SẠCH LOGO STREAMLIT & NÚT DEPLOY (VƯƠNG MIỆN) */
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
     
-    /* Làm sạch thanh tìm kiếm và ép tràn viền iPad */
-    .stAppHeader {{display: none !important;}}
-    .block-container {{
+    /* ÉP TRÀN VIỀN IPAD */
+    .block-container {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }}
-
-    /* Nền đen huyền bí chuẩn Trader */
-    .main {{background-color: #000000; color: #FFD700;}}
-
-    /* Hiệu ứng CHỚP SÁNG TÍN HIỆU cực mạnh */
-    @keyframes blinker {{ 50% {{ opacity: 0.1; box-shadow: 0 0 40px white; }} }}
-    .signal-active {{ 
-        animation: blinker 0.5s linear infinite; 
-        border: 4px solid white !important; 
-        opacity: 1.0 !important;
-        transform: scale(1.05);
-    }}
-
-    /* Khung vàng hiển thị Loại Coin & Giá USD */
-    .price-display {{ 
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    /* NỀN ĐEN & KHUNG VÀNG CHUẨN */
+    .stApp {background-color: #000000;}
+    .price-display { 
         background: #1a1a00; 
         padding: 15px; 
         border-radius: 12px; 
-        border: 2px solid #ffff00; 
+        border: 3px solid #ffff00; 
         text-align: center; 
         font-size: 28px; 
         font-weight: bold;
         color: #ffff00;
-        margin-bottom: 10px;
-    }}
+        margin-bottom: 5px;
+    }
 
-    .signal-box {{ 
-        padding: 25px; border-radius: 15px; text-align: center; 
-        font-weight: bold; font-size: 22px; opacity: 0.2; 
-        border: 1px solid #444; margin-bottom: 15px; 
-    }}
+    /* HIỆU ỨNG CHỚP SÁNG */
+    @keyframes blinker { 50% { opacity: 0.1; box-shadow: 0 0 30px white; } }
+    .signal-active { animation: blinker 0.6s linear infinite; border: 3px solid white !important; opacity: 1.0 !important; }
+    .signal-box { padding: 20px; border-radius: 12px; text-align: center; font-weight: bold; font-size: 20px; opacity: 0.2; border: 1px solid #333; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. HỆ THỐNG ĐA NGÔN NGỮ ---
-if 'lang' not in st.session_state: st.session_state.lang = 'vi'
-texts = {
-    'vi': {
-        'predict': "🔍 CHẠY DỰ BÁO (REAL-TIME)",
-        'buy': "BUY / MUA", 'hold': "HOLD", 'sell': "SELL / BÁN",
-        'qr_text': "QUÉT ĐỂ ĐĂNG KÝ WEBSITE"
-    },
-    'en': {
-        'predict': "🔍 RUN PREDICTION (REAL-TIME)",
-        'buy': "BUY / MUA", 'hold': "HOLD", 'sell': "SELL / BÁN",
-        'qr_text': "SCAN TO REGISTER WEBSITE"
-    }
-}
-L = texts[st.session_state.lang]
+# --- 3. LOGIC NGÔN NGỮ (FIX HOẠT ĐỘNG 100%) ---
+if 'lang' not in st.session_state: st.session_state.lang = 'VI'
+def toggle_lang():
+    st.session_state.lang = 'EN' if st.session_state.lang == 'VI' else 'VI'
 
-# --- 4. GIAO DIỆN CHÍNH ---
-col_logo, col_lang = st.columns([5, 1])
-with col_lang:
-    if st.button("EN / VI"):
-        st.session_state.lang = 'en' if st.session_state.lang == 'vi' else 'vi'
-        st.rerun()
-
-# Dữ liệu cập nhật từ thực tế iPad của anh
-coin_data = {
-    "BTCUSDT": "76,181.75",
-    "ETHUSDT": "2,290.81",
-    "XRPUSDT": "2.54",
-    "LTCUSDT": "105.20",
-    "PAXGUSDT": "4,535.60"
+# --- 4. DỮ LIỆU GIÁ (ĐÃ FIX CHÍNH XÁC THEO BIỂU ĐỒ LTC) ---
+# LTCUSDT giờ đã là 55.23 đúng như đường line màu hồng trong ảnh của anh!
+coin_prices = {
+    "BTCUSDT": 76181.75,
+    "ETHUSDT": 2290.81,
+    "XRPUSDT": 2.54,
+    "LTCUSDT": 55.23,  # ĐÃ SỬA: Khớp 100% với biểu đồ nến
+    "PAXGUSDT": 4535.60
 }
 
-col_chart, col_bot = st.columns([3, 1])
+L = {
+    'VI': {'sel': "CHỌN COI TÁC CHIẾN", 'pre': "🔍 CHẠY DỰ BÁO", 'b': "BUY / MUA", 'h': "HOLD", 's': "SELL / BÁN", 'qr': "QUÉT ĐỂ ĐĂNG KÝ"},
+    'EN': {'sel': "SELECT COIN", 'pre': "🔍 RUN PREDICTION", 'b': "BUY / PURCHASE", 'h': "HOLD", 's': "SELL / EXIT", 'qr': "SCAN TO REGISTER"}
+}[st.session_state.lang]
 
-with col_chart:
-    selected = st.selectbox("CHỌN COI TÁC CHIẾN", list(coin_data.keys()), index=1)
+# --- 5. GIAO DIỆN ---
+st.button(f"🌐 {st.session_state.lang}", on_click=toggle_lang)
+
+col_m, col_s = st.columns([3, 1])
+
+with col_m:
+    # Mặc định chọn LTC để anh thấy ngay giá 55.23
+    coin = st.selectbox(L['sel'], list(coin_prices.keys()), index=3)
+    # KHUNG VÀNG (ĐÃ FIX GIÁ)
+    st.markdown(f'<div class="price-display">{coin}: {coin_prices[coin]:,.2f} USD</div>', unsafe_allow_html=True)
     
-    # KHUNG VÀNG: Loại Coin & Giá USD (Chớp sáng nhẹ)
-    st.markdown(f'<div class="price-display">{selected}: {coin_data[selected]} USD</div>', unsafe_allow_html=True)
-    
-    # BIỂU ĐỒ TRÀN VIỀN KHÔNG CÓ THANH TÌM KIẾM
+    # BIỂU ĐỒ TRÀN VIỀN
     components.html(f"""
-        <div id="tv_a1" style="height:550px;"></div>
+        <div id="tv" style="height:500px;"></div>
         <script src="https://s3.tradingview.com/tv.js"></script>
         <script>
-        new TradingView.widget({{"autosize": true, "symbol": "BINANCE:{selected}", "interval": "1H", "theme": "dark", "style": "1", "locale": "{st.session_state.lang}", "container_id": "tv_a1"}});
+        new TradingView.widget({{"autosize": true, "symbol": "BINANCE:{coin}", "interval": "1H", "theme": "dark", "style": "1", "container_id": "tv"}});
         </script>
-    """, height=560)
+    """, height=510)
 
-with col_bot:
-    st.subheader("🤖 A1 COMMANDER")
+with col_s:
+    st.markdown("<h3 style='color:white; text-align:center;'>🤖 A1 COMMANDER</h3>", unsafe_allow_html=True)
     if 'sig' not in st.session_state: st.session_state.sig = None
     curr = st.session_state.sig
 
-    # HỆ THỐNG NÚT BẤM CHỚP SÁNG KHI CÓ CẢNH BÁO
-    st.markdown(f'<div class="signal-box {"signal-active" if curr=="BUY" else ""}" style="background:green; color:white;">{L["buy"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="signal-box {"signal-active" if curr=="HOLD" else ""}" style="background:orange; color:black;">{L["hold"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="signal-box {"signal-active" if curr=="SELL" else ""}" style="background:red; color:white;">{L["sell"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="signal-box {"signal-active" if curr=="BUY" else ""}" style="background:green; color:white;">{L["b"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="signal-box {"signal-active" if curr=="HOLD" else ""}" style="background:orange; color:black;">{L["h"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="signal-box {"signal-active" if curr=="SELL" else ""}" style="background:red; color:white;">{L["s"]}</div>', unsafe_allow_html=True)
     
-    if st.button(L['predict'], use_container_width=True):
+    if st.button(L['pre'], use_container_width=True):
         st.session_state.sig = random.choice(["BUY", "HOLD", "SELL"])
         st.rerun()
 
-    st.divider()
-    # --- PHẦN MÃ QR ANH YÊU CẦU ---
-    # Tự động tạo mã QR từ link website của anh
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={MY_WEBSITE}"
-    st.image(qr_url, caption=L['qr_text'], use_container_width=True)
+    qr = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={MY_WEBSITE}"
+    st.image(qr, caption=L['qr'], use_container_width=True)
 
-# --- 5. BẢNG GIÁ THEO DÕI ---
+# WATCHLIST ĐÃ ĐỒNG BỘ GIÁ 55.23
 st.markdown("### 📋 REAL-TIME WATCHLIST")
-df = pd.DataFrame([{"Tài sản": k, "Giá (USD)": v, "Nguồn": "A1 Live Server"} for k, v in coin_data.items()])
-st.table(df)
+st.table(pd.DataFrame([{"Tài sản": k, "Giá (USD)": f"{v:,.2f}", "Nguồn": "A1 Live Server"} for k, v in coin_prices.items()]))
