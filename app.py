@@ -4,121 +4,82 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import yfinance as yf
 
-# --- 1. CẤU HÌNH GIAO DIỆN (UI/UX CHUẨN IPAD) ---
-st.set_page_config(page_title="Project A1 - Global Master", layout="wide")
-
+# --- TỐI ƯU GIAO DIỆN CÂN ĐỐI ---
+st.set_page_config(page_title="A1 Master", layout="wide")
 st.markdown("""
 <style>
     .stApp { background-color: #0b0e11; color: #eaecef; }
-    .status-btn {
-        flex: 1; height: 60px; border-radius: 8px; display: flex; 
-        align-items: center; justify-content: center; font-weight: 900;
-        background: #2b3139; color: #848e9c; font-size: 24px;
-        border: 2px solid #474d57;
-    }
-    .buy-active { background: #02c076 !important; color: white !important; box-shadow: 0 0 25px #02c076; border: none; }
-    .sell-active { background: #cf304a !important; color: white !important; box-shadow: 0 0 25px #cf304a; border: none; }
-    .hold-active { background: #f0b90b !important; color: black !important; border: none; }
-    .price-hero { font-size: 70px; font-weight: 900; color: #02c076; line-height: 1.1; margin: 10px 0; }
+    .price-box { font-size: 45px; font-weight: 900; color: #02c076; margin: 0; padding: 0; }
     .price-red { color: #cf304a !important; }
+    .status-btn {
+        height: 40px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; background: #2b3139; color: #848e9c; font-size: 16px; border: 1px solid #474d57;
+    }
+    .buy-active { background: #02c076 !important; color: white !important; }
+    .sell-active { background: #cf304a !important; color: white !important; }
+    .hold-active { background: #f0b90b !important; color: black !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. THANH ĐIỀU KHIỂN & BẢO MẬT QR ---
+# --- THANH CHỈNH BÊN HÔNG GỌN GÀNG ---
 with st.sidebar:
-    st.markdown("# 🔐 PROJECT A1")
-    st.markdown("### 📲 QR LOGIN (ĐĂNG NHẬP)")
-    # QR Login bảo mật theo yêu cầu
-    qr_code = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=A1_VERIFIED_V20_MASTER"
-    st.image(qr_code, caption="Quét mã để xác thực truy cập")
-    
+    st.markdown("### 🔐 QR LOGIN")
+    st.image("https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=A1_LOGIN", width=100)
     st.divider()
-    # DANH MỤC TÀI SẢN ĐẦY ĐỦ: BTC, ETH, PAXG, LTC, XRP, BNB
-    asset = st.selectbox("Chọn tài sản", ["BTC", "ETH", "PAXG", "LTC", "XRP", "BNB"])
-    tf = st.selectbox("Khung thời gian", ["15m", "1h", "4h", "1d"], index=1)
-    
+    asset = st.selectbox("Tài sản", ["BTC", "ETH", "PAXG", "LTC", "XRP", "BNB"], index=1)
+    tf = st.selectbox("Khung giờ", ["15m", "1h", "4h", "1d"], index=1)
     st.divider()
-    # Fix triệt để Volume mờ - Mặc định 1.0 (Đậm nhất)
-    vol_intensity = st.slider("Độ sắc nét Volume", 0.1, 1.0, 1.0)
-    st.info("Tím (EMA99): Đường về\nĐỏ (EMA7): Ngắn hạn")
+    st.caption("🔴 EMA7 | 🟣 EMA99")
 
-# --- 3. XỬ LÝ DỮ LIỆU (ĐÃ KIỂM TRA LỖI INDENTATION) ---
+# --- LẤY DỮ LIỆU CHUẨN ---
 @st.cache_data(ttl=10)
-def fetch_verified_data(symbol, interval):
-    # Map mã giao dịch
-    tickers = {"BTC":"BTC-USD", "ETH":"ETH-USD", "PAXG":"PAXG-USD", "LTC":"LTC-USD", "XRP":"XRP-USD", "BNB":"BNB-USD"}
-    data = yf.download(tickers[symbol], period="5d", interval=interval, progress=False)
-    
-    # Xử lý MultiIndex nếu có
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-    data = data.reset_index()
-    
-    # Tính toán chỉ báo kỹ thuật
-    data['EMA_RED'] = data['Close'].ewm(span=7, adjust=False).mean()
-    data['EMA_PURPLE'] = data['Close'].ewm(span=99, adjust=False).mean()
-    
-    # MACD chuẩn
-    exp1 = data['Close'].ewm(span=12, adjust=False).mean()
-    exp2 = data['Close'].ewm(span=26, adjust=False).mean()
-    data['MACD'] = exp1 - exp2
-    data['Signal'] = data['MACD'].ewm(span=9, adjust=False).mean()
-    # RSI chuẩn
-    change = data['Close'].diff()
-    up = change.clip(lower=0); down = -1 * change.clip(upper=0)
-    ma_up = up.rolling(window=14).mean(); ma_down = down.rolling(window=14).mean()
-    data['RSI'] = 100 - (100 / (1 + ma_up/ma_down))
-    
-    return data
+def get_data(symbol, interval):
+    m = {"BTC":"BTC-USD", "ETH":"ETH-USD", "PAXG":"PAXG-USD", "LTC":"LTC-USD", "XRP":"XRP-USD", "BNB":"BNB-USD"}
+    df = yf.download(m[symbol], period="5d", interval=interval, progress=False)
+    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+    df = df.reset_index()
+    df['RED'] = df['Close'].ewm(span=7, adjust=False).mean()
+    df['PURPLE'] = df['Close'].ewm(span=99, adjust=False).mean()
+    e12 = df['Close'].ewm(span=12, adjust=False).mean(); e26 = df['Close'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = e12 - e26; df['Sig'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    delta = df['Close'].diff(); g = delta.where(delta > 0, 0).rolling(14).mean(); l = -delta.where(delta < 0, 0).rolling(14).mean()
+    df['RSI'] = 100 - (100 / (1 + g/l))
+    return df
 
-# Triển khai lấy dữ liệu
-df_final = fetch_verified_data(asset, tf)
-curr = df_final.iloc[-1]
-prev = df_final.iloc[-2]
+df = get_data(asset, tf)
+last, prev = df.iloc[-1], df.iloc[-2]
 
-# --- 4. HIỂN THỊ TERMINAL & TÍN HIỆU ---
-st.write(f"**Asset:** {asset}/USDT • **Market Status:** ONLINE")
-p_color = "price-red" if curr['Close'] < prev['Close'] else ""
-st.markdown(f'<div class="price-hero {p_color}">${curr["Close"]:,.2f}</div>', unsafe_allow_html=True)
+# --- HIỂN THỊ GIÁ & NÚT ---
+p_style = "price-red" if last['Close'] < prev['Close'] else ""
+st.markdown(f'<p class="price-box {p_style}">${last["Close"]:,.2f}</p>', unsafe_allow_html=True)
 
-# AI Logic (Tín hiệu dựa trên Đường Tím & MACD)
-ai_signal = "HOLD"
-if curr['Close'] > curr['EMA_PURPLE'] and curr['MACD'] > curr['Signal']:
-    ai_signal = "BUY"
-elif curr['Close'] < curr['EMA_PURPLE']:
-    ai_signal = "SELL"
+sig = "HOLD"
+if last['Close'] > last['PURPLE'] and last['MACD'] > last['Sig']: sig = "BUY"
+elif last['Close'] < last['PURPLE']: sig = "SELL"
 
-st.markdown(f"""
-<div style="display: flex; gap: 12px; margin-bottom: 25px;">
-    <div class="status-btn {'buy-active' if ai_signal == 'BUY' else ''}">BUY</div>
-    <div class="status-btn {'hold-active' if ai_signal == 'HOLD' else ''}">HOLD</div>
-    <div class="status-btn {'sell-active' if ai_signal == 'SELL' else ''}">SELL</div>
-</div>
-""", unsafe_allow_html=True)
+c1, c2, c3, c4 = st.columns([1,1,1,4])
+with c1: st.markdown(f'<div class="status-btn {"buy-active" if sig=="BUY" else ""}">BUY</div>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<div class="status-btn {"hold-active" if sig=="HOLD" else ""}">HOLD</div>', unsafe_allow_html=True)
+with c3: st.markdown(f'<div class="status-btn {"sell-active" if sig=="SELL" else ""}">SELL</div>', unsafe_allow_html=True)
 
-# --- 5. BIỂU ĐỒ NẾN ĐA TẦNG SIÊU NÉT ---
-fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, 
-                    row_heights=[0.6, 0.2, 0.2])
-x_axis = 'Date' if 'Date' in df_final.columns else 'Datetime'
+# --- BIỂU ĐỒ 3 TẦNG: NẾN, VOL, RSI (FIX CỘT GIÁ) ---
+fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02, row_heights=[0.6, 0.2, 0.2])
+t_ax = 'Date' if 'Date' in df.columns else 'Datetime'
 
-# Tầng 1: Nến + Hệ thống đường EMA (Tím/Đỏ)
-fig.add_trace(go.Candlestick(x=df_final[x_axis], open=df_final['Open'], high=df_final['High'], 
-                             low=df_final['Low'], close=df_final['Close'],
-                             increasing_line_color='#02c076', decreasing_line_color='#cf304a'), row=1, col=1)
-fig.add_trace(go.Scatter(x=df_final[x_axis], y=df_final['EMA_RED'], line=dict(color='#cf304a', width=2), name="Đỏ"), row=1, col=1)
-fig.add_trace(go.Scatter(x=df_final[x_axis], y=df_final['EMA_PURPLE'], line=dict(color='#9c27b0', width=3.5), name="Tím"), row=1, col=1)
+# Tầng 1: Nến + Đỏ + Tím
+fig.add_trace(go.Candlestick(x=df[t_ax], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], increasing_line_color='#02c076', decreasing_line_color='#cf304a'), row=1, col=1)
+fig.add_trace(go.Scatter(x=df[t_ax], y=df['RED'], line=dict(color='#cf304a', width=2), name="RED"), row=1, col=1)
+fig.add_trace(go.Scatter(x=df[t_ax], y=df['PURPLE'], line=dict(color='#9c27b0', width=3), name="PURPLE"), row=1, col=1)
 
-# Tầng 2: Volume (Đã kiểm tra độ đậm)
-v_colors = ['#02c076' if df_final['Open'].iloc[i] < df_final['Close'].iloc[i] else '#cf304a' for i in range(len(df_final))]
-fig.add_trace(go.Bar(x=df_final[x_axis], y=df_final['Volume'], marker_color=v_colors, opacity=vol_intensity), row=2, col=1)
+# Tầng 2: Volume đậm
+v_c = ['#02c076' if df['Open'].iloc[i] < df['Close'].iloc[i] else '#cf304a' for i in range(len(df))]
+fig.add_trace(go.Bar(x=df[t_ax], y=df['Volume'], marker_color=v_c, opacity=1.0), row=2, col=1)
 
-# Tầng 3: RSI mây tín hiệu
-fig.add_trace(go.Scatter(x=df_final[x_axis], y=df_final['RSI'], line=dict(color='#ffffff', width=2)), row=3, col=1)
+# Tầng 3: RSI hiện rõ
+fig.add_trace(go.Scatter(x=df[t_ax], y=df['RSI'], line=dict(color='#ffffff', width=2)), row=3, col=1)
 fig.add_hrect(y0=30, y1=70, fillcolor="#7b3af5", opacity=0.15, row=3, col=1)
-fig.add_hline(y=70, line_dash="dash", line_color="#cf304a", row=3, col=1)
-fig.add_hline(y=30, line_dash="dash", line_color="#02c076", row=3, col=1)
 
-fig.update_layout(height=850, template="plotly_dark", xaxis_rangeslider_visible=False, 
-                  margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
+# Fix cột giá bên phải & tỉ lệ iPad
+fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=5, r=40, t=5, b=5), showlegend=False)
 fig.update_yaxes(side="right", gridcolor="#1e2329")
 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
